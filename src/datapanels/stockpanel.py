@@ -18,50 +18,56 @@ Builder.load_string('''
     _boxplot: boxplot
     _graph: graph
     _timeframe: timeframe
-    orientation: 'horizontal'
+    orientation: 'vertical'
     BoxLayout:
-        id: leftbox
-        orientation: 'vertical'
-        spacing: 10
-        Label:
-            size_hint_y: .25
-            halign: 'left'
-            valign: 'top'
-            text_size: self.width-20, self.height-20
-            text: '[b][size=20]'+root._ticker+'[/size][/b]'
-            markup: True
-        Label:
-            size_hint_y: .25
-            halign: 'left'
-            text: root._ask
-        RadioButtons:
-            id: timeframe
-            size: leftbox.width, 30
-            size_hint: None, None
-            options: ["Month", "Year", "All"]
-            on_selected_value: root._timeframe_clicked(args[1])
-        Graph:
-            size_hint_y: .5
-            id: graph
-            xlabel: 'time'
-            ylabel: 'close'
+        orientation: 'horizontal'
+        BoxLayout:
+            id: leftbox
+            orientation: 'vertical'
+            spacing: 10
+            Label:
+                size_hint_y: .25
+                halign: 'left'
+                valign: 'top'
+                text_size: self.width-20, self.height-20
+                text: '[b][size=25]'+root._ticker+'[/size][/b]\\n'+root._shortName
+                markup: True
+            Label:
+                size_hint_y: .25
+                halign: 'left'
+                text: root._ask
+            Graph:
+                size_hint_y: .5
+                id: graph
+                xlabel: 'time'
+                ylabel: 'close'
             
-    BoxLayout:
-        orientation: 'vertical'
-        size_hint_x: .2
-        BoxPlot:
-            id: boxplot
-            markercolor: 1, 0, 0, 1
-        Label:
-            size_hint_y: .25
-            halign: 'left'
-            text: root._max
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_x: .2
+            BoxPlot:
+                id: boxplot
+                markercolor: 1, 0, 0, 1
+            Label:
+                size_hint_y: .25
+                halign: 'left'
+                text: root._max
+    RadioButtons:
+        id: timeframe
+        size: root.width, 30
+        size_hint: None, None
+        options: "1 Month", "3 Months", "1 Year", "5 Years"
+        selected_value: '1 Month'
+        selected_color: .1, .5, .1, 1
+        on_selected_value: root._timeframe_clicked(args[1])
+
 ''')
 
 
 class StockPanel(BoxLayout):
     _period = StringProperty("1y")
     _ticker = StringProperty("Loading...")
+    _shortName = StringProperty("")
     _ask = StringProperty("N/A")
     _max = StringProperty("")
     _3Q = StringProperty("")
@@ -80,6 +86,7 @@ class StockPanel(BoxLayout):
         t = yf.Ticker(self._ticker)
         info = t.info
         self._ask = str(info["ask"])
+        self._shortName = info["shortName"]
         df = t.history(period=self._period)
         closes = list(df.Close)
         self._boxplot.data = closes
