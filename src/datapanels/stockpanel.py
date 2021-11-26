@@ -1,5 +1,7 @@
 from typing import List, Union
 from threading import Thread
+
+import numpy as np
 import yfinance as yf
 from time import sleep
 from kivy.app import App
@@ -9,15 +11,23 @@ from kivy.clock import Clock
 from kivy.properties import ObjectProperty, StringProperty, NumericProperty
 from kwidgets.dataviz.boxplot import BoxPlot
 from kwidgets.uix.radiobuttons import RadioButtons
+from kwidgets.uix.simpletable import SimpleTable
 from kivy_garden.graph import Graph, MeshLinePlot
 
 
 
 Builder.load_string('''
+<FullLabel@Label>:
+    text_size: self.width-10, self.height-10
+    halign: 'left'
+    markup: True
+
 <StockPanel>:
     _boxplot: boxplot
     _graph: graph
     _timeframe: timeframe
+    _boxplotdata: boxplotdata
+    _detailtable: detailtable
     orientation: 'vertical'
     BoxLayout:
         orientation: 'horizontal'
@@ -26,16 +36,24 @@ Builder.load_string('''
             orientation: 'vertical'
             spacing: 10
             Label:
-                size_hint_y: .25
+                size_hint_y: .1
                 halign: 'left'
                 valign: 'top'
                 text_size: self.width-20, self.height-20
-                text: '[b][size=25]'+root._ticker+'[/size][/b]\\n'+root._shortName
+                text: '[b][size=25]'+root._ticker+'[/size][/b]  '+root._shortName
                 markup: True
             Label:
-                size_hint_y: .25
+                size_hint_y: .1
                 halign: 'left'
-                text: root._ask
+                valign: 'top'
+                text: root._description
+                text_size: self.width-20, self.height-20
+            SimpleTable:
+                size_hint_y: .3
+                id: detailtable
+                itemformat: "%0.2f"
+                keys: "currentPrice", "revenuePerShare", "yield", "priceToSalesTrailing12Months", "beta3Year", "grossMargins", "profitMargins"
+                displaykeys: "Current Price", "Revenue Per Share", "Yield", "12 Month Price to Sales", "3 Year Beta", "Gross Margins", "Profit Margins"
             Graph:
                 size_hint_y: .5
                 id: graph
@@ -44,14 +62,16 @@ Builder.load_string('''
             
         BoxLayout:
             orientation: 'vertical'
-            size_hint_x: .2
+            size_hint: None, 1
+            size: 200, root.height
             BoxPlot:
                 id: boxplot
                 markercolor: 1, 0, 0, 1
-            Label:
-                size_hint_y: .25
-                halign: 'left'
-                text: root._max
+            SimpleTable:
+                size_hint_y: .3
+                id: boxplotdata
+                itemformat: "%0.2f"
+                box_color: 0, 1, 0, 1
     RadioButtons:
         id: timeframe
         size: root.width, 30
@@ -67,36 +87,36 @@ Builder.load_string('''
 class StockPanel(BoxLayout):
     _period = StringProperty("1y")
     _ticker = StringProperty("Loading...")
+    _description = StringProperty("")
     _shortName = StringProperty("")
-    _ask = StringProperty("N/A")
-    _max = StringProperty("")
-    _3Q = StringProperty("")
-    _med = StringProperty("")
-    _1Q = StringProperty("")
-    _min = StringProperty("")
     _timer: Thread = None
     _running = True
     _update_rate_sec = NumericProperty(60*10)
     _boxplot = ObjectProperty(None)
+    _boxplotdata = ObjectProperty(None)
     _graph = ObjectProperty(None)
     _timeframe = ObjectProperty(None)
+    _detailtable = ObjectProperty(None)
+
+
 
     def update_data(self):
         #try:
         t = yf.Ticker(self._ticker)
         info = t.info
-        self._ask = str(info["ask"])
+        self._description = info["longBusinessSummary"] if "longBusinessSummary" in info else "No description"
         self._shortName = info["shortName"]
         df = t.history(period=self._period)
         closes = list(df.Close)
         self._boxplot.data = closes
-        self._max = "Max: %0.2f\n3Q: %0.2f\nMed: %0.2f\n1Q: %0.2f\nMin: %0.2f" % \
-                    (self._boxplot._bpd.max,
-                     self._boxplot._bpd.q3,
-                     self._boxplot._bpd.median,
-                     self._boxplot._bpd.q1,
-                     self._boxplot._bpd.min)
-        self._boxplot.markervalue = self._ask
+        self._boxplot.markervalue = info.get("ask", np.nan)
+        self._boxplotdata.data = {
+            "Max": self._boxplot._bpd.max,
+            "Q3": self._boxplot._bpd.q3,
+            "Median": self._boxplot._bpd.median,
+            "Q1": self._boxplot._bpd.q1,
+            "Min": self._boxplot._bpd.min
+        }
 
         for p in list(self._graph.plots):
             self._graph.remove_plot(p)
@@ -107,6 +127,8 @@ class StockPanel(BoxLayout):
         plot = MeshLinePlot(color=[0, 1, 0, 1])
         plot.points = [(i,c) for i,c in enumerate(closes)]
         self._graph.add_plot(plot)
+
+        self._detailtable.data = info
 
         return True
         #except:
@@ -124,7 +146,15 @@ class StockPanel(BoxLayout):
             sleep(self._update_rate_sec)
 
     def _timeframe_clicked(self, newperiod):
-        print(newperiod)
+        if newperiod=="1 Month":
+            self._period = "1mo"
+        if newperiod=="3 Months":
+            self._period = "3mo"
+        if newperiod=="1 Year":
+            self._period = "1y"
+        if newperiod=="5 Years":
+            self._period = "5y"
+        self.update_data()
 
     @property
     def ticker(self):
@@ -151,7 +181,7 @@ class StockPanelApp(App):
         container = Builder.load_string('''
 StockPanel:
     size_hint_y: 1
-    ticker: 'PSEC'
+    ticker: 'MSFT'
     update_rate_sec: 60*10
 ''')
         return container
