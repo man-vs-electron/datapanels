@@ -2,6 +2,7 @@ from typing import List, Union
 from threading import Thread
 
 import numpy as np
+import pandas as pd
 import yfinance as yf
 from time import sleep
 from kivy.app import App
@@ -42,23 +43,27 @@ Builder.load_string('''
                 text_size: self.width-20, self.height-20
                 text: '[b][size=25]'+root._ticker+'[/size][/b]  '+root._shortName
                 markup: True
-            Label:
-                size_hint_y: .1
-                halign: 'left'
-                valign: 'top'
-                text: root._description
-                text_size: self.width-20, self.height-20
-            SimpleTable:
-                size_hint_y: .3
-                id: detailtable
-                itemformat: "%0.2f"
-                keys: "currentPrice", "revenuePerShare", "yield", "priceToSalesTrailing12Months", "beta3Year", "grossMargins", "profitMargins"
-                displaykeys: "Current Price", "Revenue Per Share", "Yield", "12 Month Price to Sales", "3 Year Beta", "Gross Margins", "Profit Margins"
+            BoxLayout:
+                size_hint_y: .4
+                orientation: 'horizontal'
+                SimpleTable:
+                    size_hint_x: None
+                    size: 300, 0
+                    key_size_hint_x: .75
+                    id: detailtable
+                    itemformat: "%0.2f"
+                    keys: "currentPrice", "revenuePerShare", "yield", "dividendRate", "priceToSalesTrailing12Months", "beta3Year", "grossMargins", "profitMargins"
+                    displaykeys: "Current Price", "Revenue Per Share", "Yield", "Dividend Rate", "12 Month Price to Sales", "3 Year Beta", "Gross Margins", "Profit Margins"
+                Label:
+                    halign: 'left'
+                    valign: 'top'
+                    text: root._description
+                    text_size: self.width-20, self.height-20
             Graph:
                 size_hint_y: .5
                 id: graph
-                xlabel: 'time'
-                ylabel: 'close'
+                #xlabel: 'time'
+                #ylabel: 'close'
             
         BoxLayout:
             orientation: 'vertical'
@@ -83,9 +88,15 @@ Builder.load_string('''
 
 ''')
 
+_pandas_offsets = {
+    "1mo": pd.DateOffset(months=1),
+    "3mo": pd.DateOffset(months=3),
+    "1y": pd.DateOffset(months=12),
+    "5y": pd.DateOffset(months=50)
+}
 
 class StockPanel(BoxLayout):
-    _period = StringProperty("1y")
+    _period = StringProperty("1mo")
     _ticker = StringProperty("Loading...")
     _description = StringProperty("")
     _shortName = StringProperty("")
@@ -97,27 +108,13 @@ class StockPanel(BoxLayout):
     _graph = ObjectProperty(None)
     _timeframe = ObjectProperty(None)
     _detailtable = ObjectProperty(None)
+    _history_df = None
 
-
-
-    def update_data(self):
-        #try:
-        t = yf.Ticker(self._ticker)
-        info = t.info
-        self._description = info["longBusinessSummary"] if "longBusinessSummary" in info else "No description"
-        self._shortName = info["shortName"]
-        df = t.history(period=self._period)
+    def draw_graph(self):
+        now = pd.to_datetime("now")
+        earliest = now-_pandas_offsets[self._period]
+        df = self._history_df.query("@now>=index>=@earliest")
         closes = list(df.Close)
-        self._boxplot.data = closes
-        self._boxplot.markervalue = info.get("ask", np.nan)
-        self._boxplotdata.data = {
-            "Max": self._boxplot._bpd.max,
-            "Q3": self._boxplot._bpd.q3,
-            "Median": self._boxplot._bpd.median,
-            "Q1": self._boxplot._bpd.q1,
-            "Min": self._boxplot._bpd.min
-        }
-
         for p in list(self._graph.plots):
             self._graph.remove_plot(p)
         self._graph.xmin=0
@@ -128,12 +125,29 @@ class StockPanel(BoxLayout):
         plot.points = [(i,c) for i,c in enumerate(closes)]
         self._graph.add_plot(plot)
 
-        self._detailtable.data = info
+        self._boxplot.data = closes
+        self._boxplotdata.data = {
+            "Max": self._boxplot._bpd.max,
+            "Q3": self._boxplot._bpd.q3,
+            "Median": self._boxplot._bpd.median,
+            "Q1": self._boxplot._bpd.q1,
+            "Min": self._boxplot._bpd.min
+        }
 
-        return True
-        #except:
-        #    print("Error updating %s..." % self._ticker)
-        #    return False
+    def update_data(self):
+        try:
+            t = yf.Ticker(self._ticker)
+            info = t.info
+            self._description = info["longBusinessSummary"] if "longBusinessSummary" in info else "No description"
+            self._shortName = info["shortName"]
+            self._history_df = t.history(period="5y")
+            self._detailtable.data = info
+            self.draw_graph()
+            self._boxplot.markervalue = info.get("ask", np.nan)
+            return True
+        except:
+            print("Error updating %s..." % self._ticker)
+            return False
 
 
     def _update_now(self):
@@ -154,7 +168,7 @@ class StockPanel(BoxLayout):
             self._period = "1y"
         if newperiod=="5 Years":
             self._period = "5y"
-        self.update_data()
+        self.draw_graph()
 
     @property
     def ticker(self):
@@ -181,7 +195,7 @@ class StockPanelApp(App):
         container = Builder.load_string('''
 StockPanel:
     size_hint_y: 1
-    ticker: 'MSFT'
+    ticker: 'PSEC'
     update_rate_sec: 60*10
 ''')
         return container
