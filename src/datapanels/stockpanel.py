@@ -30,6 +30,12 @@ Builder.load_string('''
     _boxplotdata: boxplotdata
     _detailtable: detailtable
     orientation: 'vertical'
+    canvas.before:
+        Color: 
+            rgba: 0, 0, 0, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
     BoxLayout:
         orientation: 'horizontal'
         BoxLayout:
@@ -194,7 +200,6 @@ class StockPanelApp(App):
     def build(self):
         container = Builder.load_string('''
 StockPanel:
-    size_hint_y: 1
     ticker: 'PSEC'
     update_rate_sec: 60*10
 ''')
