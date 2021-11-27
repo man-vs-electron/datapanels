@@ -17,7 +17,7 @@ provided, a simple default set of panels will be created.
 # Configuring Datapanels
 
 Datapanels can be configured via a configuration file that specifies 
-what panels should be displayed.  This is actually (Kivy)[https://kivy.org/] 
+what panels should be displayed.  This is actually a Kivy ([https://kivy.org/]) 
 configuration file.  
 
 The configuration file should take the form:

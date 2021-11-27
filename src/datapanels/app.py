@@ -1,3 +1,7 @@
+""" The main "executable" for datapanels
+
+"""
+
 import argparse
 import numpy as np
 from kivy.lang.builder import Builder
