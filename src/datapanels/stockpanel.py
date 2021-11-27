@@ -1,6 +1,6 @@
 from typing import List, Union
 from threading import Thread
-
+from datetime import datetime
 import numpy as np
 import pandas as pd
 import yfinance as yf
@@ -14,6 +14,7 @@ from kwidgets.dataviz.boxplot import BoxPlot
 from kwidgets.uix.radiobuttons import RadioButtons
 from kwidgets.uix.simpletable import SimpleTable
 from kivy_garden.graph import Graph, MeshLinePlot
+from kivy.logger import Logger
 
 
 
@@ -42,13 +43,21 @@ Builder.load_string('''
             id: leftbox
             orientation: 'vertical'
             spacing: 10
-            Label:
-                size_hint_y: .1
-                halign: 'left'
-                valign: 'top'
-                text_size: self.width-20, self.height-20
-                text: '[b][size=25]'+root._ticker+'[/size][/b]  '+root._shortName
-                markup: True
+            BoxLayout:
+                size_hint: 1, None
+                size: 0, 50
+                orientation: 'horizontal'
+                Label:
+                    halign: 'left'
+                    valign: 'bottom'
+                    text_size: self.width-20, self.height-20
+                    text: '[b][size=25]'+root._ticker+'[/size][/b]  '+root._shortName
+                    markup: True
+                Label:
+                    halign: 'right'
+                    valign: 'bottom'
+                    text_size: self.width-20, self.height-20
+                    text: root._lastupdate
             BoxLayout:
                 size_hint_y: .4
                 orientation: 'horizontal'
@@ -102,6 +111,7 @@ _pandas_offsets = {
 }
 
 class StockPanel(BoxLayout):
+    _lastupdate = StringProperty("Loading...")
     _period = StringProperty("1mo")
     _ticker = StringProperty("Loading...")
     _description = StringProperty("")
@@ -115,44 +125,49 @@ class StockPanel(BoxLayout):
     _timeframe = ObjectProperty(None)
     _detailtable = ObjectProperty(None)
     _history_df = None
+    proxyserver = StringProperty(None)
 
     def draw_graph(self):
-        now = pd.to_datetime("now")
-        earliest = now-_pandas_offsets[self._period]
-        df = self._history_df.query("@now>=index>=@earliest")
-        closes = list(df.Close)
-        for p in list(self._graph.plots):
-            self._graph.remove_plot(p)
-        self._graph.xmin=0
-        self._graph.xmax=len(closes)
-        self._graph.ymin=min(closes)
-        self._graph.ymax=max(closes)
-        plot = MeshLinePlot(color=[0, 1, 0, 1])
-        plot.points = [(i,c) for i,c in enumerate(closes)]
-        self._graph.add_plot(plot)
+        if self._history_df is None:
+            Logger.info("Graph not yet loaded.")
+        else:
+            now = pd.to_datetime("now")
+            earliest = now-_pandas_offsets[self._period]
+            df = self._history_df.query("@now>=index>=@earliest")
+            closes = list(df.Close)
+            for p in list(self._graph.plots):
+                self._graph.remove_plot(p)
+            self._graph.xmin=0
+            self._graph.xmax=len(closes)
+            self._graph.ymin=min(closes)
+            self._graph.ymax=max(closes)
+            plot = MeshLinePlot(color=[0, 1, 0, 1])
+            plot.points = [(i,c) for i,c in enumerate(closes)]
+            self._graph.add_plot(plot)
 
-        self._boxplot.data = closes
-        self._boxplotdata.data = {
-            "Max": self._boxplot._bpd.max,
-            "Q3": self._boxplot._bpd.q3,
-            "Median": self._boxplot._bpd.median,
-            "Q1": self._boxplot._bpd.q1,
-            "Min": self._boxplot._bpd.min
-        }
+            self._boxplot.data = closes
+            self._boxplotdata.data = {
+                "Max": self._boxplot._bpd.max,
+                "Q3": self._boxplot._bpd.q3,
+                "Median": self._boxplot._bpd.median,
+                "Q1": self._boxplot._bpd.q1,
+                "Min": self._boxplot._bpd.min
+            }
 
     def update_data(self):
         try:
             t = yf.Ticker(self._ticker)
-            info = t.info
+            info = t.get_info(proxy=self.proxyserver)
             self._description = info["longBusinessSummary"] if "longBusinessSummary" in info else "No description"
             self._shortName = info["shortName"]
-            self._history_df = t.history(period="5y")
+            self._history_df = t.history(period="5y", proxy=self.proxyserver)
             self._detailtable.data = info
             self.draw_graph()
             self._boxplot.markervalue = info.get("ask", np.nan)
+            self._lastupdate = datetime.now().strftime("Last Update: %m/%d/%Y %H:%M:%S")
             return True
-        except:
-            print("Error updating %s..." % self._ticker)
+        except Exception as e:
+            Logger.warning("StockPanel: Error updating %s... %s" % (self._ticker, str(e)))
             return False
 
 
@@ -162,6 +177,7 @@ class StockPanel(BoxLayout):
     def _update_data_loop(self):
         while self._running:
             while not self.update_data():
+                Logger.info("StockPanel: Retrying in 10 seconds.")
                 sleep(10)
             sleep(self._update_rate_sec)
 

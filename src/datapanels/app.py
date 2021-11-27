@@ -16,7 +16,7 @@ __default_string = """
 <DataBuilder>:
     QuotationDisplay:
         update_sec: 5
-        quotations: "Quote 1", "Quote 2", "Quote 3"
+        quotations: "See https://github.com/man-vs-electron/datapanels for info on how to configure this application.", "Where you go, that's where you'll be", "Thanks for trying this application."
     StockPanel:
         ticker: 'MSFT'
     StockPanel:
