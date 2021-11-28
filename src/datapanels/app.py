@@ -132,7 +132,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Start DataPanels")
     parser.add_argument('--builder_path', default=None, required=False, type=str, help='Path to file with builder string')
     parser.add_argument("--transition_sec", default=60*10, required=False, type=int, help='Time between transitions in seconds')
-    parser.add_argument("--full_screen", default=True, required=False, type=bool, help="Whether to make the application full screen")
+    parser.add_argument("--full_screen", default=False, required=False, type=bool, help="Whether to make the application full screen")
     args = parser.parse_args()
     Builder.load_string(__default_string if args.builder_path is None else args.builder_path)
     DataPanelsApp(transition_sec=args.transition_sec, full_screen=args.full_screen).run()
