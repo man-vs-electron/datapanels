@@ -83,12 +83,13 @@ Builder.load_string('''
         BoxLayout:
             orientation: 'vertical'
             size_hint: None, 1
-            size: 200, root.height
+            size: 150, root.height
             BoxPlot:
                 id: boxplot
                 markercolor: 1, 0, 0, 1
             SimpleTable:
-                size_hint_y: .3
+                size_hint: 1, None
+                size: 150, 150
                 id: boxplotdata
                 itemformat: "%0.2f"
                 box_color: 0, 1, 0, 1

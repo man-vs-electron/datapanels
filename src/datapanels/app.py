@@ -60,29 +60,29 @@ Builder.load_string("""
             text: "currenttime"
         Button:
             size_hint: None, 1
-            size: 30, 0
+            size: 90, 0
             canvas:
                 Color:
                     rgba: 0, 1, 0, 1
                 Line:
                     width: 2
-                    points: self.x+10, self.y+self.height/2, self.x+self.width-10, self.y+self.height-10
+                    points: self.x+40, self.y+self.height/2, self.x+self.width-40, self.y+self.height-10
                 Line:
                     width: 2
-                    points: self.x+10, self.y+self.height/2, self.x+self.width-10, self.y+10
+                    points: self.x+40, self.y+self.height/2, self.x+self.width-40, self.y+10
             on_press: databuilder.prev_page()
         Button:
             size_hint: None, 1
-            size: 30, 0
+            size: 90, 0
             canvas:
                 Color:
                     rgba: 0, 1, 0, 1
                 Line:
                     width: 2
-                    points: self.x+10, self.y+10, self.x+self.width-10, self.y+self.height/2
+                    points: self.x+40, self.y+10, self.x+self.width-40, self.y+self.height/2
                 Line:
                     width: 2
-                    points: self.x+10, self.y+self.height-10, self.x+self.width-10, self.y+self.height/2
+                    points: self.x+40, self.y+self.height-10, self.x+self.width-40, self.y+self.height/2
             on_press: databuilder.next_page()
         Button:
             size_hint: None, 1
@@ -134,5 +134,10 @@ if __name__ == "__main__":
     parser.add_argument("--transition_sec", default=60*10, required=False, type=int, help='Time between transitions in seconds')
     parser.add_argument("--full_screen", default=False, required=False, type=bool, help="Whether to make the application full screen")
     args = parser.parse_args()
-    Builder.load_string(__default_string if args.builder_path is None else args.builder_path)
+    if args.builder_path is None:
+        string_to_load = __default_string
+    else:
+        with open(args.builder_path, 'r') as f:
+            string_to_load = f.read()
+    Builder.load_string(string_to_load)
     DataPanelsApp(transition_sec=args.transition_sec, full_screen=args.full_screen).run()
