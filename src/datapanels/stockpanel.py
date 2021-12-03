@@ -165,7 +165,7 @@ class StockPanel(BoxLayout):
             self._history_df = t.history(period="5y", proxy=self.proxyserver)
             self._detailtable.data = info
             self.draw_graph()
-            self._boxplot.markervalue = info.get("ask", np.nan)
+            self._boxplot.markervalue = info.get("regularMarketPrice", np.nan)
             self._lastupdate = datetime.now().strftime("Last Update: %m/%d/%Y %H:%M:%S")
             return True
         except Exception as e:
