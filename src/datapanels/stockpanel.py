@@ -59,7 +59,8 @@ Builder.load_string('''
                     text_size: self.width-20, self.height-20
                     text: root._lastupdate
             BoxLayout:
-                size_hint_y: .4
+                size_hint: 1, None
+                size: 0, 180
                 orientation: 'horizontal'
                 SimpleTable:
                     size_hint_x: None
@@ -75,7 +76,6 @@ Builder.load_string('''
                     text: root._description
                     text_size: self.width-20, self.height-20
             Graph:
-                size_hint_y: .5
                 id: graph
                 #xlabel: 'time'
                 #ylabel: 'close'
@@ -176,14 +176,14 @@ class StockPanel(BoxLayout):
         Thread(target=self.update_data, daemon=True).start()
 
     def _update_data_loop(self):
-        initial_delay = np.random.randint(0, self.delayrange)
+        initial_delay = 0 if self.delayrange == 0 else np.random.randint(0, self.delayrange)
         Logger.info("StockPanel: Delaying initial data update %d seconds" % initial_delay)
         sleep(initial_delay)
         while self._running:
             while not self.update_data():
                 Logger.info("StockPanel: Retrying in 10-ish seconds.")
-                sleep(10 + np.random.randint(0, self.delayrange))
-            sleep(self._update_rate_sec + np.random.randint(0, self.delayrange))
+                sleep(10 + (0 if self.delayrange == 0 else np.random.randint(0, self.delayrange)))
+            sleep(self._update_rate_sec + (0 if self.delayrange == 0 else np.random.randint(0, self.delayrange)))
 
     def _timeframe_clicked(self, newperiod):
         if newperiod=="1 Month":
@@ -220,8 +220,9 @@ class StockPanelApp(App):
     def build(self):
         container = Builder.load_string('''
 StockPanel:
-    ticker: 'VTI'
     update_rate_sec: 60*10
+    delayrange: 0
+    ticker: 'VTI'
 ''')
         return container
 
