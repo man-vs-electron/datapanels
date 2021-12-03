@@ -64,11 +64,11 @@ Builder.load_string('''
                 SimpleTable:
                     size_hint_x: None
                     size: 300, 0
-                    key_size_hint_x: .75
+                    key_size_hint_x: .65
                     id: detailtable
                     itemformat: "%0.2f"
-                    keys: "currentPrice", "revenuePerShare", "yield", "dividendRate", "priceToSalesTrailing12Months", "beta3Year", "grossMargins", "profitMargins"
-                    displaykeys: "Current Price", "Revenue Per Share", "Yield", "Dividend Rate", "12 Month Price to Sales", "3 Year Beta", "Gross Margins", "Profit Margins"
+                    keys: "regularMarketPrice", "regularMarketPreviousClose", "regularMarketDayHigh", "regularMarketDayLow", "regularMarketVolume", "averageDailyVolume10Day"
+                    displaykeys: "Market Price", "Previous Close", "Day High", "Day Low", "Volume", "Avg 10 Day Volume"
                 Label:
                     halign: 'left'
                     valign: 'top'
@@ -220,7 +220,7 @@ class StockPanelApp(App):
     def build(self):
         container = Builder.load_string('''
 StockPanel:
-    ticker: 'PSEC'
+    ticker: 'VTI'
     update_rate_sec: 60*10
 ''')
         return container
