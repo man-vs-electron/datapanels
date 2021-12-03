@@ -127,6 +127,7 @@ class StockPanel(BoxLayout):
     _detailtable = ObjectProperty(None)
     _history_df = None
     proxyserver = StringProperty(None)
+    delayrange = NumericProperty(60)
 
     def draw_graph(self):
         if self._history_df is None:
@@ -171,16 +172,18 @@ class StockPanel(BoxLayout):
             Logger.warning("StockPanel: Error updating %s... %s" % (self._ticker, str(e)))
             return False
 
-
     def _update_now(self):
         Thread(target=self.update_data, daemon=True).start()
 
     def _update_data_loop(self):
+        initial_delay = np.random.randint(0, self.delayrange)
+        Logger.info("StockPanel: Delaying initial data update %d seconds" % initial_delay)
+        sleep(initial_delay)
         while self._running:
             while not self.update_data():
-                Logger.info("StockPanel: Retrying in 10 seconds.")
-                sleep(10)
-            sleep(self._update_rate_sec)
+                Logger.info("StockPanel: Retrying in 10-ish seconds.")
+                sleep(10 + np.random.randint(0, self.delayrange))
+            sleep(self._update_rate_sec + np.random.randint(0, self.delayrange))
 
     def _timeframe_clicked(self, newperiod):
         if newperiod=="1 Month":

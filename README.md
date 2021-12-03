@@ -72,3 +72,6 @@ The parameters include:
 * ticker - The symbol for the stock of interest
 * update_rate_sec - How many seconds to wait before updating the data.
 * proxyserver - A proxy server to use (if you are behind a firewall)
+* delayrange - An integer with the maximum time to add to update_rate_sec before
+               updating.  This helps to spread out the calls of the different panels
+               so that they are not all calling out at once.
