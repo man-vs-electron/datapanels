@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import Iterable
 from threading import Thread
 from datetime import datetime
 import numpy as np
@@ -9,7 +9,7 @@ from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.lang.builder import Builder
 from kivy.clock import Clock
-from kivy.properties import ObjectProperty, StringProperty, NumericProperty
+from kivy.properties import ObjectProperty, StringProperty, NumericProperty, ListProperty
 from kwidgets.dataviz.boxplot import BoxPlot
 from kwidgets.uix.radiobuttons import RadioButtons
 from kwidgets.uix.simpletable import SimpleTable
@@ -115,6 +115,7 @@ class StockPanel(BoxLayout):
     _lastupdate = StringProperty("Loading...")
     _period = StringProperty("1mo")
     _ticker = StringProperty("Loading...")
+    _tickers = ListProperty(["MSFT"])
     _description = StringProperty("")
     _shortName = StringProperty("")
     _timer: Thread = None
@@ -158,11 +159,12 @@ class StockPanel(BoxLayout):
 
     def update_data(self):
         try:
+            self._ticker = np.random.choice(self._tickers)
             t = yf.Ticker(self._ticker)
             info = t.get_info(proxy=self.proxyserver)
+            self._history_df = t.history(period="5y", proxy=self.proxyserver)
             self._description = info["longBusinessSummary"] if "longBusinessSummary" in info else "No description"
             self._shortName = info["shortName"]
-            self._history_df = t.history(period="5y", proxy=self.proxyserver)
             self._detailtable.data = info
             self.draw_graph()
             self._boxplot.markervalue = info.get("regularMarketPrice", np.nan)
@@ -197,12 +199,12 @@ class StockPanel(BoxLayout):
         self.draw_graph()
 
     @property
-    def ticker(self):
-        return self._ticker
+    def tickers(self):
+        return self._tickers
 
-    @ticker.setter
-    def ticker(self, ticker: str):
-        self._ticker = ticker
+    @tickers.setter
+    def tickers(self, tickers: Iterable[str]):
+        self._tickers = list(tickers)
         self._timer = Thread(target=self._update_data_loop, daemon=True)
         self._timer.start()
 
@@ -220,9 +222,9 @@ class StockPanelApp(App):
     def build(self):
         container = Builder.load_string('''
 StockPanel:
-    update_rate_sec: 60*10
+    update_rate_sec: 30
     delayrange: 0
-    ticker: 'VTI'
+    tickers: 'VTI', 'MSFT', 'PSEC', 'DOCN'
 ''')
         return container
 
