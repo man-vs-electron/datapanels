@@ -9,7 +9,7 @@ from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.lang.builder import Builder
 from kivy.clock import Clock
-from kivy.properties import ObjectProperty, StringProperty, NumericProperty, ListProperty
+from kivy.properties import ObjectProperty, StringProperty, NumericProperty, ListProperty, DictProperty
 from kwidgets.dataviz.boxplot import BoxPlot
 from kwidgets.uix.radiobuttons import RadioButtons
 from kwidgets.uix.simpletable import SimpleTable
@@ -112,23 +112,29 @@ _pandas_offsets = {
 }
 
 class StockPanel(BoxLayout):
-    _lastupdate = StringProperty("Loading...")
+    # Configuration Properties
+    data_update_rate_sec = NumericProperty(60 * 10)
     _period = StringProperty("1mo")
-    _ticker = StringProperty("Loading...")
-    _tickers = ListProperty(["MSFT"])
-    _description = StringProperty("")
-    _shortName = StringProperty("")
+    proxyserver = StringProperty(None)
+    _panel_change_rate_sec = NumericProperty(60)
+
+
+    # Data Properties
+    _tickersinfo = DictProperty({"MSFT":None})
     _timer: Thread = None
     _running = True
-    _update_rate_sec = NumericProperty(60*10)
+
+    # Panel Display Properties
+    _lastupdate = StringProperty("Loading...")
+    _ticker = StringProperty("Loading...")
+    _description = StringProperty("")
+    _shortName = StringProperty("")
     _boxplot = ObjectProperty(None)
     _boxplotdata = ObjectProperty(None)
     _graph = ObjectProperty(None)
     _timeframe = ObjectProperty(None)
     _detailtable = ObjectProperty(None)
     _history_df = None
-    proxyserver = StringProperty(None)
-    delayrange = NumericProperty(60)
 
     def draw_graph(self):
         if self._history_df is None:
@@ -157,18 +163,32 @@ class StockPanel(BoxLayout):
                 "Min": self._boxplot._bpd.min
             }
 
-    def update_data(self):
+    def update_data(self, ticker = None):
         try:
-            self._ticker = np.random.choice(self._tickers)
-            t = yf.Ticker(self._ticker)
-            info = t.get_info(proxy=self.proxyserver)
-            self._history_df = t.history(period="5y", proxy=self.proxyserver)
+            if ticker is None:
+                aticker = np.random.choice(list(self._tickersinfo.keys()))
+            else:
+                aticker = ticker
+
+            if aticker not in self._tickersinfo or \
+                    self._tickersinfo[aticker] is None or \
+                    (datetime.now()-self._tickersinfo[aticker][2]).total_seconds()>self.data_update_rate_sec:
+                Logger.info("StockPanel: Updating %s" % aticker)
+                t = yf.Ticker(aticker)
+                info = t.get_info(proxy=self.proxyserver)
+                history_df = t.history(period="5y", proxy=self.proxyserver)
+                laste_update = datetime.now()
+                self._tickersinfo[aticker] = [info, history_df, laste_update]
+
+            info, self._history_df, last_update = self._tickersinfo[aticker]
+
+            self._ticker = aticker
             self._description = info["longBusinessSummary"] if "longBusinessSummary" in info else "No description"
             self._shortName = info["shortName"]
             self._detailtable.data = info
             self.draw_graph()
             self._boxplot.markervalue = info.get("regularMarketPrice", np.nan)
-            self._lastupdate = datetime.now().strftime("Last Update: %m/%d/%Y %H:%M:%S")
+            self._lastupdate = last_update.strftime("Last Update: %m/%d/%Y %H:%M:%S")
             return True
         except Exception as e:
             Logger.warning("StockPanel: Error updating %s... %s" % (self._ticker, str(e)))
@@ -178,14 +198,11 @@ class StockPanel(BoxLayout):
         Thread(target=self.update_data, daemon=True).start()
 
     def _update_data_loop(self):
-        initial_delay = 0 if self.delayrange == 0 else np.random.randint(0, self.delayrange)
-        Logger.info("StockPanel: Delaying initial data update %d seconds" % initial_delay)
-        sleep(initial_delay)
         while self._running:
             while not self.update_data():
-                Logger.info("StockPanel: Retrying in 10-ish seconds.")
-                sleep(10 + (0 if self.delayrange == 0 else np.random.randint(0, self.delayrange)))
-            sleep(self._update_rate_sec + (0 if self.delayrange == 0 else np.random.randint(0, self.delayrange)))
+                Logger.info("StockPanel: Retrying in 10 seconds.")
+                sleep(10)
+            sleep(self.panel_change_rate_sec)
 
     def _timeframe_clicked(self, newperiod):
         if newperiod=="1 Month":
@@ -200,21 +217,21 @@ class StockPanel(BoxLayout):
 
     @property
     def tickers(self):
-        return self._tickers
+        return list(self._tickersinfo.keys())
 
     @tickers.setter
     def tickers(self, tickers: Iterable[str]):
-        self._tickers = list(tickers)
+        self._tickersinfo = {t:None for t in tickers}
         self._timer = Thread(target=self._update_data_loop, daemon=True)
         self._timer.start()
 
     @property
-    def update_rate_sec(self):
-        return self._update_rate_sec
+    def panel_change_rate_sec(self):
+        return self._panel_change_rate_sec
 
-    @update_rate_sec.setter
-    def update_rate_sec(self, rate: int):
-        self._update_rate_sec = rate
+    @panel_change_rate_sec.setter
+    def panel_change_rate_sec(self, rate: int):
+        self._panel_change_rate_sec = rate
 
 
 class StockPanelApp(App):
@@ -222,8 +239,8 @@ class StockPanelApp(App):
     def build(self):
         container = Builder.load_string('''
 StockPanel:
-    update_rate_sec: 30
-    delayrange: 0
+    panel_change_rate_sec: 10
+    data_update_rate_sec: 60*20
     tickers: 'VTI', 'MSFT', 'PSEC', 'DOCN'
 ''')
         return container
