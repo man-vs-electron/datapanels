@@ -13,6 +13,7 @@ from kivy.app import App
 from kivy.clock import Clock
 from kivy.logger import Logger
 from kivy.core.window import Window
+from datapanels.globals import ui_lock
 
 from kwidgets.text.quotationdisplay import QuotationDisplay
 from datapanels.stockpanel import StockPanel
@@ -24,24 +25,24 @@ __default_string = """
         update_sec: 5
         quotations: "See https://github.com/man-vs-electron/datapanels for info on how to configure this application.", "Where you go, that's where you'll be", "Thanks for trying this application."
     StockPanel:
-        ticker: 'MSFT'
-    StockPanel:
-        ticker: 'PSEC'
-    StockPanel:
-        ticker: 'DOCN'
+        tickers: 'MSFT', 'PSEC'
+        data_update_rate_sec: 60*20
+        panel_change_rate_sec: 20
 """
-
 
 class DataBuilder(PageLayout):
 
     def rotate(self, dt):
-        self.page = np.random.choice(len(self.children))
+        with ui_lock:
+            self.page = np.random.choice(len(self.children))
 
     def prev_page(self):
-        self.page = (self.page - 1) % len(self.children)
+        with ui_lock:
+            self.page = (self.page - 1) % len(self.children)
 
     def next_page(self):
-        self.page = (self.page + 1) % len(self.children)
+        with ui_lock:
+            self.page = (self.page + 1) % len(self.children)
 
 Builder.load_string("""
 #:import exit sys.exit
@@ -131,7 +132,7 @@ class DataPanelsApp(App):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Start DataPanels")
     parser.add_argument('--builder_path', default=None, required=False, type=str, help='Path to file with builder string')
-    parser.add_argument("--transition_sec", default=60*10, required=False, type=int, help='Time between transitions in seconds')
+    parser.add_argument("--transition_sec", default=30, required=False, type=int, help='Time between transitions in seconds')
     parser.add_argument("--full_screen", default=False, required=False, type=bool, help="Whether to make the application full screen")
     args = parser.parse_args()
     if args.builder_path is None:

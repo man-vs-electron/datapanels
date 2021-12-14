@@ -16,6 +16,8 @@ from kwidgets.uix.simpletable import SimpleTable
 from kivy_garden.graph import Graph, MeshLinePlot
 from kivy.logger import Logger
 
+from datapanels.globals import ui_lock
+
 
 
 Builder.load_string('''
@@ -169,7 +171,6 @@ class StockPanel(BoxLayout):
                 aticker = np.random.choice(list(self._tickersinfo.keys()))
             else:
                 aticker = ticker
-
             if aticker not in self._tickersinfo or \
                     self._tickersinfo[aticker] is None or \
                     (datetime.now()-self._tickersinfo[aticker][2]).total_seconds()>self.data_update_rate_sec:
@@ -182,13 +183,14 @@ class StockPanel(BoxLayout):
 
             info, self._history_df, last_update = self._tickersinfo[aticker]
 
-            self._ticker = aticker
-            self._description = info["longBusinessSummary"] if "longBusinessSummary" in info else "No description"
-            self._shortName = info["shortName"]
-            self._detailtable.data = info
-            self.draw_graph()
-            self._boxplot.markervalue = info.get("regularMarketPrice", np.nan)
-            self._lastupdate = last_update.strftime("Last Update: %m/%d/%Y %H:%M:%S")
+            with ui_lock:
+                self._ticker = aticker
+                self._description = info["longBusinessSummary"] if "longBusinessSummary" in info else "No description"
+                self._shortName = info["shortName"]
+                self._detailtable.data = info
+                self.draw_graph()
+                self._boxplot.markervalue = info.get("regularMarketPrice", np.nan)
+                self._lastupdate = last_update.strftime("Last Update: %m/%d/%Y %H:%M:%S")
             return True
         except Exception as e:
             Logger.warning("StockPanel: Error updating %s... %s" % (self._ticker, str(e)))
