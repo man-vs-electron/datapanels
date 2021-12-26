@@ -65,13 +65,13 @@ The parameters include:
   the path to a text file with one line per quotation
 
 ## StockPanel
-The StockPanel display information about a single stock.  This information
-is downloaded using the yfinance library.  
+The StockPanel display information about a list of stocks.  Data about
+one stock is shown at a time and the specific stock shown is rotated
+around on a regular basis.
 
 The parameters include:
-* ticker - The symbol for the stock of interest
-* update_rate_sec - How many seconds to wait before updating the data.
+* tickers - A list of symbols to watch
+* data_update_rate_sec - How many seconds to wait before updating the data.
+* ticker_change_rate_sec - The number of seconds to wait between each 
+  automated stock change.
 * proxyserver - A proxy server to use (if you are behind a firewall)
-* delayrange - An integer with the maximum time to add to update_rate_sec before
-               updating.  This helps to spread out the calls of the different panels
-               so that they are not all calling out at once.

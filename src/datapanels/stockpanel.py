@@ -16,9 +16,6 @@ from kwidgets.uix.simpletable import SimpleTable
 from kivy_garden.graph import Graph, MeshLinePlot
 from kivy.logger import Logger
 
-from datapanels.globals import ui_lock
-
-
 
 Builder.load_string('''
 <FullLabel@Label>:
@@ -27,11 +24,6 @@ Builder.load_string('''
     markup: True
 
 <StockPanel>:
-    _boxplot: boxplot
-    _graph: graph
-    _timeframe: timeframe
-    _boxplotdata: boxplotdata
-    _detailtable: detailtable
     orientation: 'vertical'
     canvas.before:
         Color: 
@@ -49,17 +41,28 @@ Builder.load_string('''
                 size_hint: 1, None
                 size: 0, 50
                 orientation: 'horizontal'
+                Spinner:
+                    id: selected_ticker
+                    size_hint: None, 1
+                    size: 150, 0
+                    text: 'Loading'
+                    markup: True
+                    values: []
+                    on_text:
+                        root.update_panel()
                 Label:
+                    id: shortName
                     halign: 'left'
-                    valign: 'bottom'
+                    valign: 'center'
                     text_size: self.width-20, self.height-20
-                    text: '[b][size=25]'+root._ticker+'[/size][/b]  '+root._shortName
+                    text: "Loading"
                     markup: True
                 Label:
+                    id: last_update
                     halign: 'right'
-                    valign: 'bottom'
+                    valign: 'center'
                     text_size: self.width-20, self.height-20
-                    text: root._lastupdate
+                    text: ""
             BoxLayout:
                 size_hint: 1, None
                 size: 0, 180
@@ -73,9 +76,10 @@ Builder.load_string('''
                     keys: "regularMarketPrice", "regularMarketPreviousClose", "regularMarketDayHigh", "regularMarketDayLow", "regularMarketVolume", "averageDailyVolume10Day"
                     displaykeys: "Market Price", "Previous Close", "Day High", "Day Low", "Volume", "Avg 10 Day Volume"
                 Label:
+                    id: company_description
                     halign: 'left'
                     valign: 'top'
-                    text: root._description
+                    text: "loading"
                     text_size: self.width-20, self.height-20
             Graph:
                 id: graph
@@ -102,23 +106,21 @@ Builder.load_string('''
         options: "1 Month", "3 Months", "1 Year", "5 Years"
         selected_value: '1 Month'
         selected_color: .1, .5, .1, 1
-        on_selected_value: root._timeframe_clicked(args[1])
-
+        on_selected_value: root.draw_graph()
 ''')
 
 _pandas_offsets = {
-    "1mo": pd.DateOffset(months=1),
-    "3mo": pd.DateOffset(months=3),
-    "1y": pd.DateOffset(months=12),
-    "5y": pd.DateOffset(months=50)
+    "1 Month": pd.DateOffset(months=1),
+    "3 Months": pd.DateOffset(months=3),
+    "1 Year": pd.DateOffset(months=12),
+    "5 Years": pd.DateOffset(months=50)
 }
 
 class StockPanel(BoxLayout):
     # Configuration Properties
     data_update_rate_sec = NumericProperty(60 * 10)
-    _period = StringProperty("1mo")
     proxyserver = StringProperty(None)
-    _panel_change_rate_sec = NumericProperty(60)
+    ticker_change_rate_sec = NumericProperty(60)
 
 
     # Data Properties
@@ -127,15 +129,6 @@ class StockPanel(BoxLayout):
     _running = True
 
     # Panel Display Properties
-    _lastupdate = StringProperty("Loading...")
-    _ticker = StringProperty("Loading...")
-    _description = StringProperty("")
-    _shortName = StringProperty("")
-    _boxplot = ObjectProperty(None)
-    _boxplotdata = ObjectProperty(None)
-    _graph = ObjectProperty(None)
-    _timeframe = ObjectProperty(None)
-    _detailtable = ObjectProperty(None)
     _history_df = None
 
     def draw_graph(self):
@@ -143,79 +136,78 @@ class StockPanel(BoxLayout):
             Logger.info("Graph not yet loaded.")
         else:
             now = pd.to_datetime("now")
-            earliest = now-_pandas_offsets[self._period]
+            earliest = now-_pandas_offsets[self.ids.timeframe.selected_value]
             df = self._history_df.query("@now>=index>=@earliest")
             closes = list(df.Close)
-            for p in list(self._graph.plots):
-                self._graph.remove_plot(p)
-            self._graph.xmin=0
-            self._graph.xmax=len(closes)
-            self._graph.ymin=min(closes)
-            self._graph.ymax=max(closes)
+            for p in list(self.ids.graph.plots):
+                self.ids.graph.remove_plot(p)
+            self.ids.graph.xmin=0
+            self.ids.graph.xmax=len(closes)
+            self.ids.graph.ymin=min(closes)
+            self.ids.graph.ymax=max(closes)
             plot = MeshLinePlot(color=[0, 1, 0, 1])
             plot.points = [(i,c) for i,c in enumerate(closes)]
-            self._graph.add_plot(plot)
+            self.ids.graph.add_plot(plot)
 
-            self._boxplot.data = closes
-            self._boxplotdata.data = {
-                "Max": self._boxplot._bpd.max,
-                "Q3": self._boxplot._bpd.q3,
-                "Median": self._boxplot._bpd.median,
-                "Q1": self._boxplot._bpd.q1,
-                "Min": self._boxplot._bpd.min
+            self.ids.boxplot.data = closes
+            self.ids.boxplotdata.data = {
+                "Max": self.ids.boxplot._bpd.max,
+                "Q3": self.ids.boxplot._bpd.q3,
+                "Median": self.ids.boxplot._bpd.median,
+                "Q1": self.ids.boxplot._bpd.q1,
+                "Min": self.ids.boxplot._bpd.min
             }
 
     def update_data(self, ticker = None):
-        try:
-            if ticker is None:
-                aticker = np.random.choice(list(self._tickersinfo.keys()))
-            else:
-                aticker = ticker
-            if aticker not in self._tickersinfo or \
-                    self._tickersinfo[aticker] is None or \
-                    (datetime.now()-self._tickersinfo[aticker][2]).total_seconds()>self.data_update_rate_sec:
-                Logger.info("StockPanel: Updating %s" % aticker)
-                t = yf.Ticker(aticker)
-                info = t.get_info(proxy=self.proxyserver)
-                history_df = t.history(period="5y", proxy=self.proxyserver)
-                laste_update = datetime.now()
-                self._tickersinfo[aticker] = [info, history_df, laste_update]
+        for aticker in self._tickersinfo.keys():
+            succeeded = False
+            while not succeeded:
+                try:
+                    Logger.info("StockPanel: Updating %s" % aticker)
+                    t = yf.Ticker(aticker)
+                    info = t.get_info(proxy=self.proxyserver)
+                    history_df = t.history(period="5y", proxy=self.proxyserver)
+                    last_update = datetime.now()
+                    self._tickersinfo[aticker] = [info, history_df, last_update]
+                    self.ids.selected_ticker.values = self.ids.selected_ticker.values + [aticker]
+                    succeeded = True
+                    sleep(10)
+                except Exception as e:
+                    Logger.warning("StockPanel: Error updating %s... %s" % (aticker, str(e)))
+                    sleep(10)
 
-            info, self._history_df, last_update = self._tickersinfo[aticker]
-
-            with ui_lock:
-                self._ticker = aticker
-                self._description = info["longBusinessSummary"] if "longBusinessSummary" in info else "No description"
-                self._shortName = info["shortName"]
-                self._detailtable.data = info
-                self.draw_graph()
-                self._boxplot.markervalue = info.get("regularMarketPrice", np.nan)
-                self._lastupdate = last_update.strftime("Last Update: %m/%d/%Y %H:%M:%S")
+    def choose_new_ticker(self, *args):
+        ready_keys = [k for k,v in self._tickersinfo.items() if v is not None]
+        if len(ready_keys)>0:
+            aticker = np.random.choice(ready_keys)
+            Logger.info("StockPanel: Randomly chose %s" % aticker)
+            self.ids.selected_ticker.text = aticker
             return True
-        except Exception as e:
-            Logger.warning("StockPanel: Error updating %s... %s" % (self._ticker, str(e)))
+        else:
             return False
 
-    def _update_now(self):
-        Thread(target=self.update_data, daemon=True).start()
+
+    def update_panel(self, *args):
+        aticker = self.ids.selected_ticker.text
+        info, self._history_df, last_update = self._tickersinfo[aticker]
+        self.ids.company_description.text = info["longBusinessSummary"] if "longBusinessSummary" in info else "No description"
+        self.ids.shortName.text = info["shortName"]
+        self.ids.detailtable.data = info
+        self.draw_graph()
+        self.ids.boxplot.markervalue = info.get("regularMarketPrice", np.nan)
+        self.ids.last_update.text = last_update.strftime("Last Update: %m/%d/%Y %H:%M:%S")
 
     def _update_data_loop(self):
         while self._running:
-            while not self.update_data():
-                Logger.info("StockPanel: Retrying in 10 seconds.")
-                sleep(10)
-            sleep(self.panel_change_rate_sec)
+            self.update_data()
+            Logger.info("StockPanel: Data Updated. Refreshing in %d seconds." % self.data_update_rate_sec)
+            sleep(self.data_update_rate_sec)
 
-    def _timeframe_clicked(self, newperiod):
-        if newperiod=="1 Month":
-            self._period = "1mo"
-        if newperiod=="3 Months":
-            self._period = "3mo"
-        if newperiod=="1 Year":
-            self._period = "1y"
-        if newperiod=="5 Years":
-            self._period = "5y"
-        self.draw_graph()
+    def _display_update_boot(self, *args):
+        if not self.choose_new_ticker():
+            Clock.schedule_once(self._display_update_boot, 10)
+        else:
+            Clock.schedule_interval(self.choose_new_ticker, self.ticker_change_rate_sec)
 
     @property
     def tickers(self):
@@ -226,14 +218,7 @@ class StockPanel(BoxLayout):
         self._tickersinfo = {t:None for t in tickers}
         self._timer = Thread(target=self._update_data_loop, daemon=True)
         self._timer.start()
-
-    @property
-    def panel_change_rate_sec(self):
-        return self._panel_change_rate_sec
-
-    @panel_change_rate_sec.setter
-    def panel_change_rate_sec(self, rate: int):
-        self._panel_change_rate_sec = rate
+        Clock.schedule_once(self._display_update_boot, 10)
 
 
 class StockPanelApp(App):
@@ -241,7 +226,7 @@ class StockPanelApp(App):
     def build(self):
         container = Builder.load_string('''
 StockPanel:
-    panel_change_rate_sec: 10
+    ticker_change_rate_sec: 10
     data_update_rate_sec: 60*20
     tickers: 'VTI', 'MSFT', 'PSEC', 'DOCN'
 ''')

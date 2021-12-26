@@ -13,7 +13,6 @@ from kivy.app import App
 from kivy.clock import Clock
 from kivy.logger import Logger
 from kivy.core.window import Window
-from datapanels.globals import ui_lock
 
 from kwidgets.text.quotationdisplay import QuotationDisplay
 from datapanels.stockpanel import StockPanel
@@ -25,24 +24,21 @@ __default_string = """
         update_sec: 5
         quotations: "See https://github.com/man-vs-electron/datapanels for info on how to configure this application.", "Where you go, that's where you'll be", "Thanks for trying this application."
     StockPanel:
-        tickers: 'MSFT', 'PSEC'
+        tickers: 'MSFT', 'PSEC', 'TSLA'
         data_update_rate_sec: 60*20
-        panel_change_rate_sec: 20
+        ticker_change_rate_sec: 5
 """
 
 class DataBuilder(PageLayout):
 
     def rotate(self, dt):
-        with ui_lock:
-            self.page = np.random.choice(len(self.children))
+        self.next_page()
 
     def prev_page(self):
-        with ui_lock:
-            self.page = (self.page - 1) % len(self.children)
+        self.page = (self.page - 1) % len(self.children)
 
     def next_page(self):
-        with ui_lock:
-            self.page = (self.page + 1) % len(self.children)
+        self.page = (self.page + 1) % len(self.children)
 
 Builder.load_string("""
 #:import exit sys.exit
