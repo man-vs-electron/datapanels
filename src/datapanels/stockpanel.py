@@ -8,7 +8,7 @@ from time import sleep
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.lang.builder import Builder
-from kivy.clock import Clock
+from kivy.clock import Clock, mainthread
 from kivy.properties import ObjectProperty, StringProperty, NumericProperty, ListProperty, DictProperty
 from kwidgets.dataviz.boxplot import BoxPlot
 from kwidgets.uix.radiobuttons import RadioButtons
@@ -158,6 +158,12 @@ class StockPanel(BoxLayout):
                 "Min": self.ids.boxplot._bpd.min
             }
 
+    @mainthread
+    def _threadsafe_data_update(self, aticker, ticker_packet):
+        self._tickersinfo[aticker] = ticker_packet
+        if aticker not in self.ids.selected_ticker.values:
+            self.ids.selected_ticker.values = self.ids.selected_ticker.values + [aticker]
+
     def update_data(self, ticker = None):
         for aticker in self._tickersinfo.keys():
             succeeded = False
@@ -168,8 +174,7 @@ class StockPanel(BoxLayout):
                     info = t.get_info(proxy=self.proxyserver)
                     history_df = t.history(period="5y", proxy=self.proxyserver)
                     last_update = datetime.now()
-                    self._tickersinfo[aticker] = [info, history_df, last_update]
-                    self.ids.selected_ticker.values = self.ids.selected_ticker.values + [aticker]
+                    self._threadsafe_data_update(aticker, [info, history_df, last_update])
                     succeeded = True
                     sleep(10)
                 except Exception as e:
