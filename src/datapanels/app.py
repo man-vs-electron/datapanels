@@ -16,6 +16,7 @@ from kivy.core.window import Window
 
 from kwidgets.text.quotationdisplay import QuotationDisplay
 from datapanels.stockpanel import StockPanel
+from datapanels.gameoflife import GameOfLifePanel
 
 __default_string = """
 <DataBuilder>:
@@ -27,6 +28,8 @@ __default_string = """
         tickers: 'MSFT', 'PSEC', 'TSLA'
         data_update_rate_sec: 60*20
         ticker_change_rate_sec: 5
+    GameOfLifePanel:
+    
 """
 
 class DataBuilder(PageLayout):

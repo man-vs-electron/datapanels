@@ -4,6 +4,7 @@ from queue import Queue, Empty
 from threading import Thread, RLock
 import numpy as np
 from kivy.lang.builder import Builder
+from kivy.properties import ListProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.clock import Clock
 from kivy.app import App
@@ -112,29 +113,32 @@ Builder.load_string('''
     PixelatedGrid:
         id: grid  
         size_hint: 1,1  
+        activated_color: root.activated_color
 ''')
 
 
 class GameOfLifePanel(BoxLayout):
-    pass
+    golt: GameOfLifeThread
+    activated_color = ListProperty([0, 1, 1, 1])
+
+    def __init__(self, **kwargs):
+        super(GameOfLifePanel, self).__init__(**kwargs)
+        self.golt = GameOfLifeThread()
+        self.golt.new_random(.2)
+        self.golt.start()
+        Clock.schedule_interval(self.gol_update, .25)
+
+    def gol_update(self, *args):
+        new_state = self.golt.quiet_get()
+        if new_state:
+            self.ids.grid.activated_cells = new_state
 
 
 class GameOfLifeApp(App):
-    golp: GameOfLifePanel
-    golt: GameOfLifeThread
-
-    def update(self, *args):
-        new_state = self.golt.quiet_get()
-        if new_state:
-            self.golp.ids.grid.activated_cells = new_state
 
     def build(self):
-        self.golt = GameOfLifeThread()
-        self.golt.new_random(.2)
-        self.golp = GameOfLifePanel()
-        self.golt.start()
-        Clock.schedule_interval(self.update, 1)
-        return self.golp
+        return GameOfLifePanel()
+
 
 if __name__ == "__main__":
     GameOfLifeApp().run()
