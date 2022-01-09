@@ -1,7 +1,4 @@
 from typing import Tuple, Set, Optional, Union
-import time
-from queue import Queue, Empty
-from threading import Thread, RLock
 import numpy as np
 from kivy.lang.builder import Builder
 from kivy.properties import ListProperty
@@ -52,53 +49,6 @@ class GameOfLifeEngine:
         return self.active_cells
 
 
-class GameOfLifeThread:
-    _gol: GameOfLifeEngine
-    _q: Queue
-    gol_thread: Thread
-    running: bool = False
-    lock = RLock()
-
-    def __init__(self, queue_size: int = 50):
-        self._q = Queue(maxsize=queue_size)
-        self._gol = GameOfLifeEngine()
-
-    def quiet_get(self):
-        try:
-            return self._q.get(block=False)
-        except Empty:
-            return None
-
-    def get(self):
-        return self._q.get()
-
-    def clear(self):
-        with self.lock:
-            while not self._q.empty():
-                self.quiet_get()
-
-    def new_random(self, p: Union[float, int]):
-        with self.lock:
-            self._gol.clear()
-            self._gol.random(p)
-
-    def add_random(self, p: Union[float, int]):
-        with self.lock:
-            self._gol.active_cells = self.quiet_get() or set()
-            self._gol.random(p)
-
-    def step_loop(self):
-        self.running = True
-        while self.running:
-            with self.lock:
-                new_state = self._gol.step()
-                self._q.put(new_state)
-
-    def start(self):
-        self.gol_thread = Thread(target=self.step_loop, daemon=True)
-        self.gol_thread.start()
-
-
 Builder.load_string('''
 <GameOfLifePanel>:
     orientation: 'vertical'
@@ -108,8 +58,10 @@ Builder.load_string('''
         size: 0, 50
         Button:
             text: 'Random'
+            on_press: root.new_random(.2)
         Button:
-            text: 'Add 10 Random'
+            text: 'Add 100 Random'
+            on_press: root.gol.random(100)
     PixelatedGrid:
         id: grid  
         size_hint: 1,1  
@@ -118,21 +70,22 @@ Builder.load_string('''
 
 
 class GameOfLifePanel(BoxLayout):
-    golt: GameOfLifeThread
+    gol: GameOfLifeEngine
     activated_color = ListProperty([0, 1, 1, 1])
 
     def __init__(self, **kwargs):
         super(GameOfLifePanel, self).__init__(**kwargs)
-        self.golt = GameOfLifeThread()
-        self.golt.new_random(.2)
-        self.golt.start()
+        self.gol = GameOfLifeEngine()
+        self.gol.random(.2)
         Clock.schedule_interval(self.gol_update, .25)
 
     def gol_update(self, *args):
-        new_state = self.golt.quiet_get()
-        if new_state:
-            self.ids.grid.activated_cells = new_state
+        new_state = self.gol.step(self.ids.grid.visible_width(), self.ids.grid.visible_height())
+        self.ids.grid.activated_cells = new_state
 
+    def new_random(self, p: Union[float, int], *args):
+        self.gol.clear()
+        self.gol.random(p)
 
 class GameOfLifeApp(App):
 
