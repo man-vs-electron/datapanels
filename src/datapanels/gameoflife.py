@@ -72,12 +72,12 @@ Builder.load_string('''
 class GameOfLifePanel(BoxLayout):
     gol: GameOfLifeEngine
     activated_color = ListProperty([0, 1, 1, 1])
+    initialized = False
+    update_event = None
 
     def __init__(self, **kwargs):
         super(GameOfLifePanel, self).__init__(**kwargs)
         self.gol = GameOfLifeEngine()
-        self.gol.random(.2)
-        Clock.schedule_interval(self.gol_update, .25)
 
     def gol_update(self, *args):
         new_state = self.gol.step(self.ids.grid.visible_width(), self.ids.grid.visible_height())
@@ -87,10 +87,24 @@ class GameOfLifePanel(BoxLayout):
         self.gol.clear()
         self.gol.random(p)
 
+    def dp_stop(self):
+        if self.update_event is not None:
+            self.update_event.cancel()
+            self.update_event = None
+
+    def dp_start(self):
+        if not self.initialized:
+            self.gol.random(.2)
+            self.initialized = True
+        self.update_event = Clock.schedule_interval(self.gol_update, .1)
+
+
 class GameOfLifeApp(App):
 
     def build(self):
-        return GameOfLifePanel()
+        panel = GameOfLifePanel()
+        panel.dp_start()
+        return panel
 
 
 if __name__ == "__main__":

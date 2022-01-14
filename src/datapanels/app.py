@@ -6,17 +6,22 @@ import argparse
 from datetime import datetime
 import numpy as np
 from kivy.lang.builder import Builder
-from kivy.uix.pagelayout import PageLayout
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.pagelayout import PageLayout
 from kivy.properties import ObjectProperty
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.logger import Logger
 from kivy.core.window import Window
 
+from datapanels.util import has_method
+
 from kwidgets.text.quotationdisplay import QuotationDisplay
 from datapanels.stockpanel import StockPanel
 from datapanels.gameoflife import GameOfLifePanel
+
+STARTMETHOD = "dp_start"
+STOPMETHOD = "dp_stop"
 
 __default_string = """
 <DataBuilder>:
@@ -38,10 +43,35 @@ class DataBuilder(PageLayout):
         self.next_page()
 
     def prev_page(self):
+        old_widget = self.get_current_widget()
+        if has_method(old_widget, "dp_stop"):
+            old_widget.dp_stop()
+
         self.page = (self.page - 1) % len(self.children)
 
+        new_widget = self.get_current_widget()
+        if has_method(new_widget, "dp_start"):
+            new_widget.dp_start()
+
     def next_page(self):
+        old_widget = self.get_current_widget()
+        if has_method(old_widget, "dp_stop"):
+            old_widget.dp_stop()
+
         self.page = (self.page + 1) % len(self.children)
+
+        new_widget = self.get_current_widget()
+        if has_method(new_widget, "dp_start"):
+            new_widget.dp_start()
+
+    def get_current_widget(self):
+        '''
+        NOTE: This code depends on the "reversed" function in this line (https://github.com/kivy/kivy/blob/2.0.0/kivy/uix/pagelayout.py#L103)
+        which indicates that the page number is a reverse index into the children list.  If this changes, the wrong
+        child will be returned.
+        :return:
+        '''
+        return self.children[len(self.children)-1-self.page]
 
 Builder.load_string("""
 #:import exit sys.exit
