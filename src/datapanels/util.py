@@ -1,3 +1,6 @@
+""" Utilities for datapanels
+
+"""
 
 def has_method(o, name):
     '''

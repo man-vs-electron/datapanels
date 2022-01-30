@@ -1,3 +1,11 @@
+""" Stock panel
+
+Displays and updates information about various stocks with some interactive ability for a user to choose the stock
+being displayed and to change the timeframe over which information is displayed.
+
+Note that this panel is not intended to be used for professional investing.
+
+"""
 from typing import Iterable
 from threading import Thread
 from datetime import datetime
@@ -9,12 +17,12 @@ from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.lang.builder import Builder
 from kivy.clock import Clock, mainthread
-from kivy.properties import ObjectProperty, StringProperty, NumericProperty, ListProperty, DictProperty
+from kivy.properties import StringProperty, NumericProperty, DictProperty
+from kivy_garden.graph import Graph, MeshLinePlot
+from kivy.logger import Logger
 from kwidgets.dataviz.boxplot import BoxPlot
 from kwidgets.uix.radiobuttons import RadioButtons
 from kwidgets.uix.simpletable import SimpleTable
-from kivy_garden.graph import Graph, MeshLinePlot
-from kivy.logger import Logger
 
 
 Builder.load_string('''
@@ -117,6 +125,20 @@ _pandas_offsets = {
 }
 
 class StockPanel(BoxLayout):
+    """ The panel that displays stock information.
+
+    Multiple stocks can be selected.  The panel will periodically change the stock being displayed.  The user can also
+    click a dropdown menu and choose a stock of interest.  Uses yfinance for pulling stock info.
+
+    Note that this panel is not intended to be used for professional investing.
+
+    Key Properties:
+    * data_update_rate_sec: how many seconds between updating the stock info
+    * proxserver: if not None, a proxy server to use for talking to yfinance
+    * ticker_change_rate_sec: how many seconds between changing the stock being shown
+    * tickers: list of security ticker symbols to track
+
+    """
     # Configuration Properties
     data_update_rate_sec = NumericProperty(60 * 10)
     proxyserver = StringProperty(None)
@@ -132,6 +154,10 @@ class StockPanel(BoxLayout):
     _history_df = None
 
     def draw_graph(self):
+        """ Draws the linegraph and the boxplot for the specified security
+
+        :return:
+        """
         if self._history_df is None:
             Logger.info("Graph not yet loaded.")
         else:
@@ -160,11 +186,24 @@ class StockPanel(BoxLayout):
 
     @mainthread
     def _threadsafe_data_update(self, aticker, ticker_packet):
+        """ Update some retrieved information
+
+        Required because properties should only be changed on the main thread.
+        :param aticker: a ticker symbol
+        :param ticker_packet: Thge data associated with that ticker symbol
+        :return:
+        """
         self._tickersinfo[aticker] = ticker_packet
         if aticker not in self.ids.selected_ticker.values:
             self.ids.selected_ticker.values = self.ids.selected_ticker.values + [aticker]
 
-    def update_data(self, ticker = None):
+    def update_data(self):
+        """  For every ticker symbol being tracked, pull the latest data using yfinance.
+
+        If an exception is thrown, sleep for ten seconds and try again.
+
+        :return:
+        """
         for aticker in self._tickersinfo.keys():
             succeeded = False
             while not succeeded:
@@ -182,6 +221,11 @@ class StockPanel(BoxLayout):
                     sleep(10)
 
     def choose_new_ticker(self, *args):
+        """ Randomly chooses a ticker symbol to display
+
+        :param args:
+        :return:
+        """
         ready_keys = [k for k,v in self._tickersinfo.items() if v is not None]
         if len(ready_keys)>0:
             aticker = np.random.choice(ready_keys)
@@ -191,8 +235,12 @@ class StockPanel(BoxLayout):
         else:
             return False
 
-
     def update_panel(self, *args):
+        """ Update the data shown on the panel.
+
+        :param args: Unused
+        :return:
+        """
         aticker = self.ids.selected_ticker.text
         info, self._history_df, last_update = self._tickersinfo[aticker]
         self.ids.company_description.text = info["longBusinessSummary"] if "longBusinessSummary" in info else "No description"
@@ -203,12 +251,26 @@ class StockPanel(BoxLayout):
         self.ids.last_update.text = last_update.strftime("Last Update: %m/%d/%Y %H:%M:%S")
 
     def _update_data_loop(self):
+        """ Update loop.  This is run on a separate thread.
+
+        The data_udpate_rate_sec is the number of seconds after the last successful update that the next update takes
+        place.
+
+        :return:
+        """
         while self._running:
             self.update_data()
             Logger.info("StockPanel: Data Updated. Refreshing in %d seconds." % self.data_update_rate_sec)
             sleep(self.data_update_rate_sec)
 
     def _display_update_boot(self, *args):
+        """ Start the ticker update loop.
+
+        It issues a series of one-time checks (10 seconds apart) until some ticker is available.
+
+        :param args:
+        :return:
+        """
         if not self.choose_new_ticker():
             Clock.schedule_once(self._display_update_boot, 10)
         else:
@@ -216,10 +278,19 @@ class StockPanel(BoxLayout):
 
     @property
     def tickers(self):
+        """ The tickers to display
+
+        :return:
+        """
         return list(self._tickersinfo.keys())
 
     @tickers.setter
     def tickers(self, tickers: Iterable[str]):
+        """ The tickers to display
+
+        :param tickers: List of ticker symbols.
+        :return:
+        """
         self._tickersinfo = {t:None for t in tickers}
         self._timer = Thread(target=self._update_data_loop, daemon=True)
         self._timer.start()
