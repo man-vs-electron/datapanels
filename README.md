@@ -14,7 +14,7 @@ determine what panels get displayed. The --transition-sec parameter lets
 you specify the number of seconds between transitions. If no parameters are
 provided, a simple default set of panels will be created.
 
-# Configuring DataPanels
+## Configuring DataPanels
 
 DataPanels can be configured via a configuration file that specifies 
 what panels should be displayed.  This is actually a Kivy ([https://kivy.org/]) 
@@ -32,8 +32,7 @@ The configuration file should take the form:
         parameters for another instance of PanelType2
 ```
 
-The following example show a sample configuration.  Notice how three
-StockPanel types are created, one for each stock ticker of interest.
+The following example show a sample configuration.  
 
 ```
 <DataBuilder>:
@@ -52,6 +51,10 @@ StockPanel types are created, one for each stock ticker of interest.
 
 ```
 
+## Example Usage
+
+TODO
+
 # Panel Types
 
 Each panel displayed in Datapanels can be configured.  The following
@@ -62,8 +65,8 @@ The quotation display is a simple panel that displays quotations.  These
 quotations change periodically.
 
 The parameters include:
-* update_sec: The number of seconds before changing the quotation
-* quotations: assigned as either a list of strings, one per quotation, or a single string that is a path to
+* __update_sec__: The number of seconds before changing the quotation
+* __quotations__: assigned as either a list of strings, one per quotation, or a single string that is a path to
   a file with quotations, one per line.
 
 ## StockPanel
@@ -72,18 +75,18 @@ one stock is shown at a time and the specific stock shown is rotated
 around on a regular basis.
 
 The parameters include:
-* data_update_rate_sec: how many seconds between updating the stock info
-* proxserver: if not None, a proxy server to use for talking to yfinance
-* ticker_change_rate_sec: how many seconds between changing the stock being shown
-* tickers: list of security ticker symbols to track
+* __data_update_rate_sec__: how many seconds between updating the stock info
+* __proxserver__: if not None, a proxy server to use for talking to yfinance
+* __ticker_change_rate_sec__: how many seconds between changing the stock being shown
+* __tickers__: list of security ticker symbols to track
 
 ## GameOfLifePanel
 The Kivy panel that displays the Game of Life, along with some controls.
 
 Key Properties:
-* update_rate: number of seconds between each generation
-* random_cell_count: Either percentage of cells to make alive or the number of cells to make alive when randomizing.
-* background_color - RGBA list for the inactive cell color
-* grid_color - RGBA for the grid lines
-* activated_color - RGBA for the active cell color
-* cell_length - the length of the side of a cell (essentially cell size)
+* __update_rate__: number of seconds between each generation
+* __random_cell_count__: Either percentage of cells to make alive or the number of cells to make alive when randomizing.
+* __background_color__ - RGBA list for the inactive cell color
+* __grid_color__ - RGBA for the grid lines
+* __activated_color__ - RGBA for the active cell color
+* __cell_length__ - the length of the side of a cell (essentially cell size)

@@ -14,6 +14,54 @@ from kivy.app import App
 from kwidgets.uix.pixelatedgrid import PixelatedGrid
 
 
+def translate(state: Set[Tuple[int, int]], x: int, y: int) -> Set[Tuple[int, int]]:
+    """ Move the object the specified number of x and y values
+
+    :param state: original state
+    :param x: horizontal distance to move the object
+    :param y: vertical distance to move the object
+    :return: new, translated state
+    """
+    return set([(t[0]+x, t[1]+y) for t in state])
+
+
+def horizontal_flip(state: Set[Tuple[int, int]]) -> Set[Tuple[int, int]]:
+    """ Flip the object horizontally around the center
+
+    :param state: original state
+    :return: new modified state
+    """
+    max_x = max([t[0] for t in state])
+    min_x = min([t[0] for t in state])
+    x_width = max_x-min_x
+
+    return set([( x_width-t[0]+2*min_x, t[1] ) for t in state])
+
+
+def vertical_flip(state: Set[Tuple[int, int]]) -> Set[Tuple[int, int]]:
+    """ Flip the object vertically around the center
+
+    :param state: original state
+    :return: new modified state
+    """
+    max_y = max([t[1] for t in state])
+    min_y = min([t[1] for t in state])
+    y_width = max_y-min_y
+
+    return set([( t[0], y_width-t[1]+2*min_y ) for t in state])
+
+
+def rotate_90(state: Set[Tuple[int, int]]) -> Set[Tuple[int, int]]:
+    min_x = min([t[0] for t in state])
+    min_y = min([t[1] for t in state])
+    return set([( t[1]-min_y + min_x, t[0]-min_x+min_y ) for t in state])
+
+x = (
+    (1, 8), (1, 9), (2,8), (2, 10), (3,8), (3,10), (3, 11), (4,9),
+
+)
+
+
 class GameOfLifeEngine:
     """ Game of Life implementation
 
@@ -211,7 +259,11 @@ class GameOfLifeApp(App):
     """
 
     def build(self):
-        panel = GameOfLifePanel()
+        #panel = GameOfLifePanel()
+        panel = Builder.load_string("""
+GameOfLifePanel:
+    cell_length: 5        
+""")
         panel.dp_start()
         return panel
 
