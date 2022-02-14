@@ -7,8 +7,10 @@ the game.
 from typing import Tuple, Set, Optional, Union, List
 import numpy as np
 from kivy.lang.builder import Builder
-from kivy.properties import ListProperty, NumericProperty
+from kivy.properties import ListProperty, NumericProperty, ObjectProperty
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.dropdown import DropDown
 from kivy.clock import Clock
 from kivy.app import App
 from kwidgets.uix.pixelatedgrid import PixelatedGrid
@@ -51,16 +53,23 @@ def vertical_flip(state: Set[Tuple[int, int]]) -> Set[Tuple[int, int]]:
     return set([( t[0], y_width-t[1]+2*min_y ) for t in state])
 
 
-def rotate_90(state: Set[Tuple[int, int]]) -> Set[Tuple[int, int]]:
-    min_x = min([t[0] for t in state])
-    min_y = min([t[1] for t in state])
-    return set([( t[1]-min_y + min_x, t[0]-min_x+min_y ) for t in state])
+def rotate_90(state: Set[Tuple[int, int]], origin: Tuple[int, int]) -> Set[Tuple[int, int]]:
+    """ Rotate the object 90 degrees to the left with respect to the provide origin
+
+    :param state: original state
+    :param origin: The point of the rotation
+    :return: new modified state
+    """
+    return set([( origin[1]-t[1]+origin[0], t[0]-origin[0]+origin[1]) for t in state])
+
 
 x = (
     (1, 8), (1, 9), (2,8), (2, 10), (3,8), (3,10), (3, 11), (4,9),
-
 )
 
+initial_patterns = {
+    "R-pentomino": ((1, 0), (0, 1), (1, 1), (1, 2), (2, 2))
+}
 
 class GameOfLifeEngine:
     """ Game of Life implementation
@@ -169,6 +178,10 @@ Builder.load_string('''
         Button:
             text: 'Add 100 Random'
             on_press: root.gol.random(100)
+        Button:
+            id: menu_btn
+            text: 'Patterns'
+            on_release: root.choose_patterns()
     PixelatedGrid:
         id: grid  
         size_hint: 1,1  
@@ -194,6 +207,7 @@ class GameOfLifePanel(BoxLayout):
 
     """
     gol: GameOfLifeEngine
+    pattern_dropdown: ObjectProperty(None)
     activated_color = ListProperty([0, 1, 1, 1])
     background_color = ListProperty([0, 0, 0, 1])
     grid_color = ListProperty([47/255, 79/255, 79/255, 1])
@@ -212,6 +226,25 @@ class GameOfLifePanel(BoxLayout):
         """
         super(GameOfLifePanel, self).__init__(**kwargs)
         self.gol = GameOfLifeEngine()
+        self.pattern_dropdown = DropDown()
+        for t in initial_patterns.keys():
+            b = Button(text=t)
+            b.size_hint_y = None
+            b.height = 44
+            b.bind(on_release = lambda btn: self.set_pattern(b.text))
+            self.pattern_dropdown.add_widget(b)
+
+    def choose_patterns(self, *args):
+        self.pattern_dropdown.open(self.ids.menu_btn)
+
+    def set_pattern(self, pattern_name):
+        self.pattern_dropdown.select(None)
+        self.gol.clear()
+        pattern = initial_patterns[pattern_name]
+        pattern_xt = int((self.ids.grid.visible_width()/2)-(max([p[0] for p in pattern])-min([p[0] for p in pattern]))/2)
+        pattern_yt = int((self.ids.grid.visible_height()/2)-(max([p[1] for p in pattern])-min([p[1] for p in pattern]))/2)
+        self.gol.active_cells = translate(initial_patterns[pattern_name], pattern_xt, pattern_yt)
+
 
     def gol_update(self, *args):
         """ Move the engine ahead one generation, passing in the current size of the grid
