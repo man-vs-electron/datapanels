@@ -5,6 +5,7 @@ the game.
 
 """
 from typing import Tuple, Set, Optional, Union, List
+import re
 import numpy as np
 from kivy.lang.builder import Builder
 from kivy.properties import ListProperty, NumericProperty, ObjectProperty
@@ -16,7 +17,7 @@ from kivy.app import App
 from kwidgets.uix.pixelatedgrid import PixelatedGrid
 
 
-def translate(state: Set[Tuple[int, int]], x: int, y: int) -> Set[Tuple[int, int]]:
+def translate(state: Set[Tuple[int, int]], x: int, y: int, additive: bool=False) -> Set[Tuple[int, int]]:
     """ Move the object the specified number of x and y values
 
     :param state: original state
@@ -24,10 +25,10 @@ def translate(state: Set[Tuple[int, int]], x: int, y: int) -> Set[Tuple[int, int
     :param y: vertical distance to move the object
     :return: new, translated state
     """
-    return set([(t[0]+x, t[1]+y) for t in state])
+    return set([(t[0]+x, t[1]+y) for t in state]).union(state if additive else set())
 
 
-def horizontal_flip(state: Set[Tuple[int, int]]) -> Set[Tuple[int, int]]:
+def horizontal_flip(state: Set[Tuple[int, int]], additive: bool=False) -> Set[Tuple[int, int]]:
     """ Flip the object horizontally around the center
 
     :param state: original state
@@ -37,10 +38,10 @@ def horizontal_flip(state: Set[Tuple[int, int]]) -> Set[Tuple[int, int]]:
     min_x = min([t[0] for t in state])
     x_width = max_x-min_x
 
-    return set([( x_width-t[0]+2*min_x, t[1] ) for t in state])
+    return set([( x_width-t[0]+2*min_x, t[1] ) for t in state]).union(state if additive else set())
 
 
-def vertical_flip(state: Set[Tuple[int, int]]) -> Set[Tuple[int, int]]:
+def vertical_flip(state: Set[Tuple[int, int]], additive: bool=False) -> Set[Tuple[int, int]]:
     """ Flip the object vertically around the center
 
     :param state: original state
@@ -50,26 +51,78 @@ def vertical_flip(state: Set[Tuple[int, int]]) -> Set[Tuple[int, int]]:
     min_y = min([t[1] for t in state])
     y_width = max_y-min_y
 
-    return set([( t[0], y_width-t[1]+2*min_y ) for t in state])
+    return set([( t[0], y_width-t[1]+2*min_y ) for t in state]).union(state if additive else set())
 
 
-def rotate_90(state: Set[Tuple[int, int]], origin: Tuple[int, int]) -> Set[Tuple[int, int]]:
+def rotate_90(state: Set[Tuple[int, int]], origin: Tuple[int, int], additive: bool=False) -> Set[Tuple[int, int]]:
     """ Rotate the object 90 degrees to the left with respect to the provide origin
 
     :param state: original state
     :param origin: The point of the rotation
     :return: new modified state
     """
-    return set([( origin[1]-t[1]+origin[0], t[0]-origin[0]+origin[1]) for t in state])
+    return set([( origin[1]-t[1]+origin[0], t[0]-origin[0]+origin[1]) for t in state]).union(state if additive else set())
 
 
-x = (
-    (1, 8), (1, 9), (2,8), (2, 10), (3,8), (3,10), (3, 11), (4,9),
-)
+def multi_transform(state: Set[Tuple[int, int]], ops: List[Union[str, Tuple[str, int], Tuple[str, Tuple[int, int]]]], additive_final: bool=False) -> Set[Tuple[int, int]]:
+    ans = set(state)
+    for op in ops:
+        if isinstance(op, tuple):
+            if op[0].upper() == "T":
+                ans = translate(ans, op[1], False)
+            if op[0].upper() == "R":
+                ans = rotate_90(ans, op[1], False)
+            else:
+                raise RuntimeError("Invalid syntax. Ops must be a list where each member is in the form (T, dist)|(R, (x,y)|H|V")
+        elif op.upper() == 'H':
+            ans = horizontal_flip(ans, False)
+        elif op.upper() == 'V':
+            ans = vertical_flip(ans, False)
+        else:
+            raise RuntimeError("Invalid syntax. Ops must be a list where each member is in the form (T, dist)|(R, (x,y)|H|V")
+    return ans.union(state if additive_final else set())
+
+
+def rle_decode(rle_text: str) -> Set[Tuple[int, int]]:
+    """
+    Adapted from: https://github.com/Robert-Phan/python-conway/blob/master/main.py
+    :param rle_text:
+    :return:
+    """
+    ans = []
+    x=0
+    y=0
+    for g in re.findall(r"\d*b|\d*o|\d*\$", rle_text):
+        num = 1 if len(g)==1 else int(g[:-1])
+        code = g[-1]
+        if code=="$":
+            y += num
+            x = 0
+        if code=="b":
+            x += num
+        if code=="o":
+            for j in range(0,num):
+                ans.append((x,y))
+                x += 1
+    return set(ans)
+
 
 initial_patterns = {
-    "R-pentomino": ((1, 0), (0, 1), (1, 1), (1, 2), (2, 2))
+    "R-pentomino": ((1, 0), (0, 1), (1, 1), (1, 2), (2, 2)),
+    "clock": rle_decode("2bob$obob$bobo$bo!"),
+    "Merzenich's p31": rle_decode("7b2obo2bob2o7b$2o4bo2bo4bo2bo4b2o$2o5bobo4bobo5b2o$8bo6bo8b6$8bo6bo8b$2o5bobo4bobo5b2o$2o4bo2bo4bo2bo4b2o$7b2obo2bob2o!"),
+    "68P16": rle_decode("10b2o3b2o$10b2o3b2o$6bo$2o3b2o$2o2bo10bo$5bo3b2o2b2obo$5bo3bo6b2o2$2o$2o3bo7b2o$5b2o7bo3b2o$18b2o2$2b2o6bo3bo$3bob2o2b2o3bo$4bo10bo2b2o$13b2o3b2o$13bo$3b2o3b2o$3b2o3b2o!"),
+    "Traffic Circle": rle_decode("""21b2o4b2o19b$21bobo2bobo19b$23bo2bo21b$22b2o2b2o20b$21b3o2b3o19b$23bo
+2bo21b$31bo16b$30bob2o14b$34bo13b$26bo3bo2bobo12b$26bo5bo2bo12b$26bo6b
+2o13b$9b2o37b$8bo2bo10b3o3b3o17b$7bobobo36b$6b3obo15bo21b$6b3o17bo21b$
+26bo21b$12b3o33b$2o2bo16b3o24b$o2b2o5bo5bo31b$b5o4bo5bo2bo5bo17bo2b2o$
+10bo5bo2bo5bo17b2o2bo$19bo5bo7b3o6b5ob$b5o6b3o33b$o2b2o16b3o7bo5bo10b$
+2o2bo26bo5bo4b5ob$31bo5bo5b2o2bo$43bo2b2o$33b3o12b$39b2o7b$38b3o7b$37b
+ob2o7b$36bobo9b$20b3o13bo2bo8b$37b2o9b$13b2o4bo2bo25b$12bo2bo32b$12bob
+obo31b$13bo2bo31b$17bo30b$14bobo31b$21bo2bo23b$19b3o2b3o21b$20b2o2b2o
+22b$21bo2bo23b$19bobo2bobo21b$19b2o4b2o!""")
 }
+
 
 class GameOfLifeEngine:
     """ Game of Life implementation

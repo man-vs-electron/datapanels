@@ -1,4 +1,4 @@
-from datapanels.gameoflife import GameOfLifeEngine, vertical_flip, horizontal_flip, translate, rotate_90
+from datapanels.gameoflife import GameOfLifeEngine, vertical_flip, horizontal_flip, translate, rotate_90, rle_decode
 
 
 def test_gameoflifeengine_step():
@@ -62,3 +62,8 @@ def test_rotate_90():
     assert rotate_90({(0,0), (1,1), (2,2)}, (0, 0)) == {(0,0), (-1,1), (-2,2)}
     assert rotate_90(rotate_90(rotate_90(rotate_90({(0,0), (1,1), (2,2)}, (0, 0)), (0,0)), (0,0)), (0,0)) == {(0,0), (1,1), (2,2)}
 
+
+def test_rle_decode():
+    assert rle_decode("3o!") == {(0,0), (1,0), (2,0)}
+    assert rle_decode("2bo$3o!") == {(2,0), (0,1), (1,1), (2,1)}
+    assert rle_decode("o$$o!") == {(0,0), (0,2)}
