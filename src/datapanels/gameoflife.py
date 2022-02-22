@@ -4,6 +4,7 @@ See https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life for details about
 the game.
 
 """
+import random
 from typing import Tuple, Set, Optional, Union, List
 import re
 import numpy as np
@@ -106,12 +107,21 @@ def rle_decode(rle_text: str) -> Set[Tuple[int, int]]:
                 x += 1
     return set(ans)
 
+# Patterns taken from LifeWiki: https://conwaylife.com/wiki/Main_Page
+
+basic_patterns = {
+    "glider": rle_decode("bob$2bo$3o!"),
+    "canada goose": rle_decode("3o10b$o9b2ob$bo6b3obo$3b2o2b2o4b$4bo8b$8bo4b$4b2o3bo3b$3bobob2o4b$3bobo2bob2ob$2bo4b2o4b$2b2o9b$2b2o!"),
+    "Copperhead": rle_decode("b2o2b2o$3b2o$3b2o$obo2bobo$o6bo2$o6bo$b2o2b2o$2b4o2$3b2o$3b2o!"),
+    "Coe Ship": rle_decode("4b6o$2b2o5bo$2obo5bo$4bo3bob$6bo3b$6b2o2b$5b4ob$5b2ob2o$7b2o!")
+}
+
 
 initial_patterns = {
     "R-pentomino": ((1, 0), (0, 1), (1, 1), (1, 2), (2, 2)),
-    "clock": rle_decode("2bob$obob$bobo$bo!"),
     "Merzenich's p31": rle_decode("7b2obo2bob2o7b$2o4bo2bo4bo2bo4b2o$2o5bobo4bobo5b2o$8bo6bo8b6$8bo6bo8b$2o5bobo4bobo5b2o$2o4bo2bo4bo2bo4b2o$7b2obo2bob2o!"),
     "68P16": rle_decode("10b2o3b2o$10b2o3b2o$6bo$2o3b2o$2o2bo10bo$5bo3b2o2b2obo$5bo3bo6b2o2$2o$2o3bo7b2o$5b2o7bo3b2o$18b2o2$2b2o6bo3bo$3bob2o2b2o3bo$4bo10bo2b2o$13b2o3b2o$13bo$3b2o3b2o$3b2o3b2o!"),
+    "65P48": rle_decode("""6bo3b2o$7b2ob2o$5bobo$6bo$2o2b3o5bobo2bo$2o9bob5o2$10bob4o$10bo5bo$11b2o2b2o$9bobobo3b2o$8bobo2b3o3bo$8bo2b2o4b2obo$7b2o4b3o3bo$13bo2b3o$16bo!"""),
     "Traffic Circle": rle_decode("""21b2o4b2o19b$21bobo2bobo19b$23bo2bo21b$22b2o2b2o20b$21b3o2b3o19b$23bo
 2bo21b$31bo16b$30bob2o14b$34bo13b$26bo3bo2bobo12b$26bo5bo2bo12b$26bo6b
 2o13b$9b2o37b$8bo2bo10b3o3b3o17b$7bobobo36b$6b3obo15bo21b$6b3o17bo21b$
@@ -120,7 +130,17 @@ initial_patterns = {
 2o2bo26bo5bo4b5ob$31bo5bo5b2o2bo$43bo2b2o$33b3o12b$39b2o7b$38b3o7b$37b
 ob2o7b$36bobo9b$20b3o13bo2bo8b$37b2o9b$13b2o4bo2bo25b$12bo2bo32b$12bob
 obo31b$13bo2bo31b$17bo30b$14bobo31b$21bo2bo23b$19b3o2b3o21b$20b2o2b2o
-22b$21bo2bo23b$19bobo2bobo21b$19b2o4b2o!""")
+22b$21bo2bo23b$19bobo2bobo21b$19b2o4b2o!"""),
+    "Space Ship (160P10H2V0)": rle_decode("""7bobobo7b$6b7o6b$5bo7bo5b$b3ob3o3b3ob3ob$o17bo$bo7bo7bob$bob2o9b2obob
+2$2b3o9b3o2b$2b3o9b3o2b$5bo7bo5b$bo4bo5bo4bob$bobo11bobob$7bo3bo7b$7bo
+3bo7b$5bo2bobo2bo5b$5bo7bo5b$4bo9bo4b$4bobo5bobo4b$4b2obo3bob2o4b$5bob
+2ob2obo5b$7bobobo7b$8bobo8b$6bobobobo6b$5b2obobob2o5b$8bobo8b$7b2ob2o
+7b$4b3obobob3o4b$4bobobobobobo4b$4bo3bobo3bo4b$8bobo8b$4bo2b5o2bo4b$3b
+4o5b4o3b$b2o13b2ob$b2obo9bob2ob$2bobo4bo4bobo2b$4b2o7b2o!"""),
+    "Space Ship (Barge 2)": rle_decode("""14b3ob3o14b$13bo2bobo2bo13b$12bo3bobo3bo12b$7b3obo2bobobobo2bob3o7b$6b
+o2bobo4bobo4bobo2bo6b$5bo3bobobobo3bobobobo3bo5b$5bo23bo5b$7bo19bo7b$
+4bobo21bobo4b$3b2obob3o13b3obob2o3b$2bobobo3bo13bo3bobobo2b$b2obo25bob
+2ob$o3bo5b2o11b2o5bo3bo2$2ob2o25b2ob2o!"""),
 }
 
 
@@ -194,6 +214,7 @@ class GameOfLifeEngine:
             numcells = int(p)
         self.active_cells.update(set([(np.random.randint(0, self.x_max), np.random.randint(0, self.y_max)) for _ in range(0, numcells)]))
 
+
     def step(self, x_max: Optional[int] = None, y_max: Optional[int] = None):
         """ Update the state.
 
@@ -231,6 +252,9 @@ Builder.load_string('''
         Button:
             text: 'Add 100 Random'
             on_press: root.gol.random(100)
+        Button:
+            text: 'Random Ship'
+            on_press: root.random_small()
         Button:
             id: menu_btn
             text: 'Patterns'
@@ -284,11 +308,22 @@ class GameOfLifePanel(BoxLayout):
             b = Button(text=t)
             b.size_hint_y = None
             b.height = 44
-            b.bind(on_release = lambda btn: self.set_pattern(b.text))
+            b.bind(on_release = lambda btn: self.set_pattern(btn.text))
             self.pattern_dropdown.add_widget(b)
 
     def choose_patterns(self, *args):
         self.pattern_dropdown.open(self.ids.menu_btn)
+
+    def random_small(self):
+        k = np.random.choice(list(basic_patterns.keys()))
+        pattern = basic_patterns[k]
+        for _ in range(0,np.random.randint(0, 4)):
+            pattern = rotate_90(pattern, (0,0))
+        xt = np.random.randint(0, self.ids.grid.visible_width())
+        yt = np.random.randint(0, self.ids.grid.visible_height())
+        self.gol.active_cells = self.gol.active_cells.union(translate(pattern, xt, yt))
+
+
 
     def set_pattern(self, pattern_name):
         self.pattern_dropdown.select(None)
