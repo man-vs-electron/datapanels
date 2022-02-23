@@ -22,8 +22,8 @@ from kivy_garden.graph import Graph, MeshLinePlot
 from kivy.logger import Logger
 from kwidgets.dataviz.boxplot import BoxPlot
 from kwidgets.uix.radiobuttons import RadioButtons
-from kwidgets.uix.simpletable import SimpleTable
-from kwidgets.uix.labeledvalue import LabeledValue
+from kwidgets.text.simpletable import SimpleTable
+from kwidgets.text.labeledvalue import LabeledValue
 
 
 Builder.load_string('''
