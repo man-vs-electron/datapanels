@@ -23,6 +23,7 @@ from kivy.logger import Logger
 from kwidgets.dataviz.boxplot import BoxPlot
 from kwidgets.uix.radiobuttons import RadioButtons
 from kwidgets.uix.simpletable import SimpleTable
+from kwidgets.uix.labeledvalue import LabeledValue
 
 
 Builder.load_string('''
@@ -81,8 +82,8 @@ Builder.load_string('''
                     key_size_hint_x: .65
                     id: detailtable
                     itemformat: "%0.2f"
-                    keys: "regularMarketPrice", "regularMarketPreviousClose", "regularMarketDayHigh", "regularMarketDayLow", "regularMarketVolume", "averageDailyVolume10Day"
-                    displaykeys: "Market Price", "Previous Close", "Day High", "Day Low", "Volume", "Avg 10 Day Volume"
+                    keys: "diff", "regularMarketPrice", "regularMarketPreviousClose", "regularMarketDayHigh", "regularMarketDayLow", "regularMarketVolume", "averageDailyVolume10Day"
+                    displaykeys: "Change", "Market Price", "Previous Close", "Day High", "Day Low", "Volume", "Avg 10 Day Volume"
                 Label:
                     id: company_description
                     halign: 'left'
@@ -211,6 +212,8 @@ class StockPanel(BoxLayout):
                     Logger.info("StockPanel: Updating %s" % aticker)
                     t = yf.Ticker(aticker)
                     info = t.get_info(proxy=self.proxyserver)
+                    if "regularMarketPrice" in info and "regularMarketPreviousClose" in info:
+                        info["diff"] = info["regularMarketPrice"] - info["regularMarketPreviousClose"]
                     history_df = t.history(period="5y", proxy=self.proxyserver)
                     last_update = datetime.now()
                     self._threadsafe_data_update(aticker, [info, history_df, last_update])
