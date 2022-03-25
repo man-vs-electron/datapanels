@@ -9,14 +9,16 @@ from kivy.properties import NumericProperty, StringProperty, DictProperty
 from kwidgets.text.simpletable import SimpleTable
 
 Builder.load_string('''
-<Weather>:
+<WeatherPanel>:
     orientation: 'vertical'
-    SimpleTable:
-        size_hint_x: 1
-        size_hint_y: 1
-        id: current
-        keys: 'sunrise', 'sunset'
-        data: root.thedata
+    BoxLayout:
+        orientation: 'horizontal'
+        Image:
+            id: current_image
+            source: root.current_image
+        SimpleTable:
+            id: current
+            data: root.thedata
 ''')
 
 class WeatherPanel(BoxLayout):
@@ -24,7 +26,9 @@ class WeatherPanel(BoxLayout):
     owm_key = StringProperty(None)
     lat = NumericProperty(51.4778)
     lon = NumericProperty(-0.0014)
+    temp_units = StringProperty("fahrenheit")
     thedata = DictProperty({"sunrise": "Unknown", "sunset": "Unknown"})
+    current_image = StringProperty(None)
     started = False
 
     def update_initialize(self):
@@ -38,6 +42,7 @@ class WeatherPanel(BoxLayout):
         self.update_initialize()
 
     def update_data(self, *args):
+        
         if self.owm_key is None:
             self.owm_key = os.environ.get("OWM_KEY")
         if self.owm_key is None:
@@ -46,10 +51,18 @@ class WeatherPanel(BoxLayout):
         mgr = owm.weather_manager()
         ans = mgr.one_call(lat=self.lat, lon=self.lon)
         data = {
-            'sunrise': datetime.fromtimestamp(ans.current.sunrise_time()).strftime("%H:%M:%S"),
-            'sunset':  datetime.fromtimestamp(ans.current.sunset_time()).strftime("%H:%M:%S")
+            'As of': datetime.fromtimestamp(ans.current.reference_time()).strftime("%H:%M:%S"),
+            'Sunrise': datetime.fromtimestamp(ans.current.sunrise_time()).strftime("%H:%M:%S"),
+            'Sunset':  datetime.fromtimestamp(ans.current.sunset_time()).strftime("%H:%M:%S"),
+            'Detailed status': ans.current.detailed_status,
+            'Temperature': ans.current.temperature(self.temp_units)["temp"],
+            'Feels like': ans.current.temperature(self.temp_units)["feels_like"],
+            'Wind speed': ans.current.wind()["speed"],
+            'Wind direction': ans.current.wind()["deg"]
         }
         self.thedata = data
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
+        self.current_image = os.path.join(icon_path, ans.current.weather_icon_name+".png")
 
         
         
