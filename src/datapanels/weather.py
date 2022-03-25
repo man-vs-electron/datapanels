@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from tokenize import String
 from pyowm import OWM
 from kivy_garden.graph import Graph, MeshLinePlot
 from kivy.app import App
@@ -12,22 +13,33 @@ from kwidgets.text.simpletable import SimpleTable
 Builder.load_string('''
 <WeatherPanel>:
     orientation: 'vertical'
+    canvas.before:
+        Color: 
+            rgba: 0, 0, 0, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
     BoxLayout:
         orientation: 'horizontal'
+        size_hint_y: None
+        size: 0,275
         Image:
             id: current_image
             source: root.current_image
         SimpleTable:
             id: current
+            key_size_hint_x: .4
             data: root.thedata
-        Graph:
-            id: graph
-            y_ticks_major: 5
-            y_grid_label: True
+    Graph:
+        id: graph
+        y_ticks_major: 5
+        y_grid_label: True
+        padding: 5
 ''')
 
 class WeatherPanel(BoxLayout):
     data_update_rate_sec = NumericProperty(60*5)
+    location_name = StringProperty(None)
     owm_key = StringProperty(None)
     lat = NumericProperty(51.4778)
     lon = NumericProperty(-0.0014)
@@ -56,6 +68,7 @@ class WeatherPanel(BoxLayout):
         mgr = owm.weather_manager()
         ans = mgr.one_call(lat=self.lat, lon=self.lon)
         data = {
+            'Location': self.location_name if self.location_name else ("Lat: %f, Lon: %f" % (self.lat, self.lon)),
             'As of': datetime.fromtimestamp(ans.current.reference_time()).strftime("%H:%M:%S"),
             'Sunrise': datetime.fromtimestamp(ans.current.sunrise_time()).strftime("%H:%M:%S"),
             'Sunset':  datetime.fromtimestamp(ans.current.sunset_time()).strftime("%H:%M:%S"),

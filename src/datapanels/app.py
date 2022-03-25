@@ -23,6 +23,7 @@ from datapanels.util import has_method
 from kwidgets.text.quotationdisplay import QuotationDisplay
 from datapanels.stockpanel import StockPanel
 from datapanels.gameoflife import GameOfLifePanel
+from datapanels.weather import WeatherPanel
 
 # If a panel contains the following methods, those methods will be called when the panel is displayed or hidden
 STARTMETHOD = "dp_start"
@@ -207,6 +208,7 @@ __default_string = """
         update_rate: 0.5
         activated_color: 1, 0, 0, 1
         grid_color: 0, 0, 1, 1
+    WeatherPanel:
 
 """
 
