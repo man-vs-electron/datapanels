@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from pyowm import OWM
+from kivy_garden.graph import Graph, MeshLinePlot
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.lang.builder import Builder
@@ -19,6 +20,10 @@ Builder.load_string('''
         SimpleTable:
             id: current
             data: root.thedata
+        Graph:
+            id: graph
+            y_ticks_major: 5
+            y_grid_label: True
 ''')
 
 class WeatherPanel(BoxLayout):
@@ -63,6 +68,15 @@ class WeatherPanel(BoxLayout):
         self.thedata = data
         icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
         self.current_image = os.path.join(icon_path, ans.current.weather_icon_name+".png")
+
+        temps = [m.temperature(self.temp_units)["temp"] for m in ans.forecast_hourly]
+        self.ids.graph.xmin=0
+        self.ids.graph.xmax=len(temps)
+        self.ids.graph.ymin=min(temps) - (max(temps)-min(temps))*.05
+        self.ids.graph.ymax=max(temps) + (max(temps)-min(temps))*.05
+        plot = MeshLinePlot(color=[0, 0, 1, 1])
+        plot.points = [(i,c) for i,c in enumerate(temps)]
+        self.ids.graph.add_plot(plot)
 
         
         
