@@ -91,6 +91,9 @@ class WeatherPanel(BoxLayout):
         max_temp = max([x[1] for x in temps])
         min_temp = min([x[1] for x in temps])
 
+        for p in list(self.ids.graph.plots):
+            self.ids.graph.remove_plot(p)
+
         self.ids.graph.xmin=temps[0][0]-60*60
         self.ids.graph.xmax=temps[-1][0]+60*60
         self.ids.graph.ymin=min_temp - (max_temp-min_temp)*.05
