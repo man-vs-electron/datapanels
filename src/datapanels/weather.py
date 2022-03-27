@@ -8,7 +8,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.lang.builder import Builder
 from kivy.clock import Clock
 from kivy.utils import get_color_from_hex as rgb
-from kivy.properties import NumericProperty, StringProperty, DictProperty
+from kivy.properties import NumericProperty, StringProperty, DictProperty, ListProperty
 from kwidgets.text.simpletable import SimpleTable
 
 Builder.load_string('''
@@ -16,7 +16,7 @@ Builder.load_string('''
     orientation: 'vertical'
     canvas.before:
         Color: 
-            rgba: 0, 0, 0, 1
+            rgba: root.bg_color
         Rectangle:
             pos: self.pos
             size: self.size
@@ -31,6 +31,8 @@ Builder.load_string('''
             id: current
             key_size_hint_x: .4
             data: root.thedata
+            key_color: root.text_color
+            value_color: root.text_color
     Graph:
         id: graph
         y_ticks_major: 5
@@ -39,6 +41,9 @@ Builder.load_string('''
         x_grid_label: True
         padding: 5
         precision: '%0.2f'
+        tick_color: root.text_color
+        border_color: root.text_color
+        label_options: {'color': root.text_color}
 ''')
 
 class WeatherPanel(BoxLayout):
@@ -48,6 +53,8 @@ class WeatherPanel(BoxLayout):
     lat = NumericProperty(51.4778)
     lon = NumericProperty(-0.0014)
     temp_units = StringProperty("fahrenheit")
+    text_color = ListProperty([0,0,0,1])
+    bg_color = ListProperty([.5, .5, .5, 1])
     thedata = DictProperty({"sunrise": "Unknown", "sunset": "Unknown"})
     current_image = StringProperty(None)
     started = False
@@ -98,7 +105,7 @@ class WeatherPanel(BoxLayout):
         self.ids.graph.xmax=temps[-1][0]+60*60
         self.ids.graph.ymin=min_temp - (max_temp-min_temp)*.05
         self.ids.graph.ymax=max_temp + (max_temp-min_temp)*.05
-        plot = MeshLinePlot(color=[0.7, 0.7, 0.7, 1])
+        plot = MeshLinePlot(color=self.text_color)
         plot.points = [(i,c) for i,c in temps]
         self.ids.graph.add_plot(plot)
 
