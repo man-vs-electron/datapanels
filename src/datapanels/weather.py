@@ -1,7 +1,9 @@
+from typing import Optional, Tuple
 import os
 from datetime import datetime
 from tokenize import String
 from pyowm import OWM
+from pyowm.weatherapi25.one_call import OneCall
 from kivy_garden.graph import Graph, MeshLinePlot, ScatterPlot
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
@@ -24,13 +26,24 @@ Builder.load_string('''
         orientation: 'horizontal'
         size_hint_y: None
         size: 0,275
-        Image:
-            id: current_image
-            source: root.current_image
+        BoxLayout:
+            orientation: 'vertical'
+            Spinner:
+                id: selected_location
+                size_hint: 1, None
+                height: 50
+                text: 'Loading'
+                markup: True
+                values: []
+                on_text:
+                    root.update_panel()
+            Image:
+                id: current_image
+                source: root.current_image
         SimpleTable:
             id: current
             key_size_hint_x: .4
-            data: root.thedata
+            data: root.table_data
             key_color: root.text_color
             value_color: root.text_color
     Graph:
@@ -46,16 +59,26 @@ Builder.load_string('''
         label_options: {'color': root.text_color}
 ''')
 
+class WeatherResponse:
+    lat_lon: Tuple[float, float]
+    location_name: str = None
+    last_update: Optional[datetime] = None
+    response: Optional[OneCall] = None
+
+    def __init__(self, lat_lon: Tuple[float, float], location_name: Optional[datetime]) -> None:
+        self.lat_lon = lat_lon
+        self.location_name = location_name if location_name is not None else str(lat_lon)
+
 class WeatherPanel(BoxLayout):
     data_update_rate_sec = NumericProperty(60*5)
-    location_name = StringProperty(None)
+
+    responses = ListProperty([WeatherResponse((51.4778, -0.0014), "Royal Observatory")])
+
     owm_key = StringProperty(None)
-    lat = NumericProperty(51.4778)
-    lon = NumericProperty(-0.0014)
     temp_units = StringProperty("fahrenheit")
     text_color = ListProperty([0,0,0,1])
     bg_color = ListProperty([.5, .5, .5, 1])
-    thedata = DictProperty({"sunrise": "Unknown", "sunset": "Unknown"})
+    table_data = DictProperty({"sunrise": "Unknown", "sunset": "Unknown"})
     current_image = StringProperty(None)
     started = False
 
@@ -75,9 +98,19 @@ class WeatherPanel(BoxLayout):
             self.owm_key = os.environ.get("OWM_KEY")
         if self.owm_key is None:
             raise RuntimeError("OpenWeathermap Key not set")
-        owm = OWM(self.owm_key)
-        mgr = owm.weather_manager()
-        ans = mgr.one_call(lat=self.lat, lon=self.lon)
+        
+        for wr in self.responses:
+            if wr.location_name not in self.ids.selected_location.values:
+                self.ids.selected_location.values = self.ids.selected_location.values + [wr.location_name]
+            owm = OWM(self.owm_key)
+            mgr = owm.weather_manager()
+            ans = mgr.one_call(lat=wr.lat_lon[0], lon=wr.lat_lon[1])
+            wr.response = ans
+            wr.last_update = datetime.now()
+
+    
+    def update_panel(self, *args):
+        ans = [r for r in self.responses if r.location_name==self.ids.selected_location.text][0].response
         data = {
             'Location': self.location_name if self.location_name else ("Lat: %f, Lon: %f" % (self.lat, self.lon)),
             'As of': datetime.fromtimestamp(ans.current.reference_time()).strftime("%H:%M:%S"),
@@ -90,7 +123,7 @@ class WeatherPanel(BoxLayout):
             'Wind direction': ans.current.wind()["deg"],
             'UVI': ans.current.uvi
         }
-        self.thedata = data
+        self.table_data = data
         icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
         self.current_image = os.path.join(icon_path, ans.current.weather_icon_name+".png")
 
