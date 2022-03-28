@@ -1,3 +1,9 @@
+""" Weather Panel
+
+Displays current weather and some forecast information for multiple locations.  
+Automatically updates the weather information on a regular basis.
+"""
+
 from typing import Optional, Tuple, List
 import os
 import numpy as np
@@ -63,20 +69,45 @@ Builder.load_string('''
 ''')
 
 class WeatherResponse:
+    """ Class for storing json responses with weather information
+
+    Stores the lat/lon and user provided location name, along with the 
+    json of the last weather information.
+    """
     lat_lon: Tuple[float, float]
     location_name: str = None
-    last_update: Optional[datetime] = None
     response: Optional[OneCall] = None
 
     def __init__(self, lat_lon: Tuple[float, float], location_name: Optional[datetime]) -> None:
+        """Create a new WeatherResponse Object
+
+        :param lat_lon: Lattitude and Longitude of the location of interest
+        :type lat_lon: Tuple[float, float]
+        :param location_name: Human readable name for the location (e.g. "Tampa, FL" or "My House")
+        :type location_name: Optional[datetime]
+        """
         self.lat_lon = lat_lon
         self.location_name = location_name if location_name is not None else str(lat_lon)
 
 class WeatherPanel(BoxLayout):
+    """The main WeatherPanel interface.
+
+    The Key User Relevant Properties are:
+    * owm_key - The user's key from https://openweathermap.org/.  Note that this panel will not work without this key.  
+                It either needs to be specified as a property in the configuration or it needs to be set as an
+                environment variable.
+    * temp_units - either fahrenheit or celcius (Default - fahrenheit)
+    * text_color - the rgba color of the text and line components of the interface. (Default - [0,0,0,1])
+    * bg_color - the background color (Default - [.5, .5, .5, 1])
+    * locations - a list of WeatherResponse objects, one each for the locations of interest.  This attribute can be
+                  set by assigning a list in the form of [(lat1, lon1), location_name1, (lat2, lon2), location_name2, ...].
+                  This is the form to use when assigning locations using the configuration file.  If assigned this way, 
+                  it will be converted in a list of WeatherResponse objects.  
+    """
     data_update_rate_sec = NumericProperty(60*5)
     location_switch_rate_sec = NumericProperty(3)
 
-    responses = ListProperty([WeatherResponse((51.4778, -0.0014), "Royal Observatory")])
+    _locations = ListProperty([WeatherResponse((51.4778, -0.0014), "Royal Observatory")])
 
     owm_key = StringProperty(None)
     temp_units = StringProperty("fahrenheit")
@@ -99,7 +130,7 @@ class WeatherPanel(BoxLayout):
         self.update_initialize()
 
     def choose_random_location(self, *args):
-        self.ids.selected_location.text = self.rng.choice(self.responses).location_name
+        self.ids.selected_location.text = self.rng.choice(self._locations).location_name
 
     def update_data(self, *args):
         
@@ -108,19 +139,18 @@ class WeatherPanel(BoxLayout):
         if self.owm_key is None:
             raise RuntimeError("OpenWeathermap Key not set")
         
-        for wr in self.responses:
+        for wr in self._locations:
             owm = OWM(self.owm_key)
             mgr = owm.weather_manager()
             ans = mgr.one_call(lat=wr.lat_lon[0], lon=wr.lat_lon[1])
             wr.response = ans
-            wr.last_update = datetime.now()
             if wr.location_name not in self.ids.selected_location.values:
                 self.ids.selected_location.values = self.ids.selected_location.values + [wr.location_name]
                 self.ids.selected_location.text = wr.location_name
 
     
     def update_panel(self, *args):
-        ans = [r for r in self.responses if r.location_name==self.ids.selected_location.text][0].response
+        ans = [r for r in self._locations if r.location_name==self.ids.selected_location.text][0].response
         data = {
             'As of': datetime.fromtimestamp(ans.current.reference_time()).strftime("%H:%M:%S"),
             'Sunrise': datetime.fromtimestamp(ans.current.sunrise_time()).strftime("%H:%M:%S"),
@@ -161,17 +191,17 @@ class WeatherPanel(BoxLayout):
 
     @property
     def locations(self):
-        return self.responses
+        return self._locations
 
     @locations.setter
     def locations(self, location_list: List):
         if isinstance(location_list[0], WeatherResponse):
-            self.responses = location_list
+            self._locations = location_list
         else:
             resp = []
             for i in range(0,len(location_list), 2):
                 resp.append(WeatherResponse(location_list[i], location_list[i+1]))
-            self.responses = resp
+            self._locations = resp
         
 
 class WeatherPanelApp(App):
