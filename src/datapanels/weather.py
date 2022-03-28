@@ -1,5 +1,6 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 import os
+import numpy as np
 from datetime import datetime
 from tokenize import String
 from pyowm import OWM
@@ -34,6 +35,8 @@ Builder.load_string('''
                 height: 50
                 text: 'Loading'
                 markup: True
+                background_normal: ''
+                background_color: root.bg_color
                 values: []
                 on_text:
                     root.update_panel()
@@ -71,6 +74,7 @@ class WeatherResponse:
 
 class WeatherPanel(BoxLayout):
     data_update_rate_sec = NumericProperty(60*5)
+    location_switch_rate_sec = NumericProperty(3)
 
     responses = ListProperty([WeatherResponse((51.4778, -0.0014), "Royal Observatory")])
 
@@ -81,16 +85,21 @@ class WeatherPanel(BoxLayout):
     table_data = DictProperty({"sunrise": "Unknown", "sunset": "Unknown"})
     current_image = StringProperty(None)
     started = False
+    rng = np.random.RandomState()
 
     def update_initialize(self):
         self.update_data()
         if not self.started:
             self.started=True
             Clock.schedule_interval(self.update_data, self.data_update_rate_sec)
+            Clock.schedule_interval(self.choose_random_location, self.location_switch_rate_sec)
 
 
     def dp_start(self):
         self.update_initialize()
+
+    def choose_random_location(self, *args):
+        self.ids.selected_location.text = self.rng.choice(self.responses).location_name
 
     def update_data(self, *args):
         
@@ -100,19 +109,19 @@ class WeatherPanel(BoxLayout):
             raise RuntimeError("OpenWeathermap Key not set")
         
         for wr in self.responses:
-            if wr.location_name not in self.ids.selected_location.values:
-                self.ids.selected_location.values = self.ids.selected_location.values + [wr.location_name]
             owm = OWM(self.owm_key)
             mgr = owm.weather_manager()
             ans = mgr.one_call(lat=wr.lat_lon[0], lon=wr.lat_lon[1])
             wr.response = ans
             wr.last_update = datetime.now()
+            if wr.location_name not in self.ids.selected_location.values:
+                self.ids.selected_location.values = self.ids.selected_location.values + [wr.location_name]
+                self.ids.selected_location.text = wr.location_name
 
     
     def update_panel(self, *args):
         ans = [r for r in self.responses if r.location_name==self.ids.selected_location.text][0].response
         data = {
-            'Location': self.location_name if self.location_name else ("Lat: %f, Lon: %f" % (self.lat, self.lon)),
             'As of': datetime.fromtimestamp(ans.current.reference_time()).strftime("%H:%M:%S"),
             'Sunrise': datetime.fromtimestamp(ans.current.sunrise_time()).strftime("%H:%M:%S"),
             'Sunset':  datetime.fromtimestamp(ans.current.sunset_time()).strftime("%H:%M:%S"),
@@ -150,16 +159,26 @@ class WeatherPanel(BoxLayout):
             rainplot.points = rainpoints
             self.ids.graph.add_plot(rainplot)
 
-        
+    @property
+    def locations(self):
+        return self.responses
+
+    @locations.setter
+    def locations(self, location_list: List):
+        if isinstance(location_list[0], WeatherResponse):
+            self.responses = location_list
+        else:
+            resp = []
+            for i in range(0,len(location_list), 2):
+                resp.append(WeatherResponse(location_list[i], location_list[i+1]))
+            self.responses = resp
         
 
 class WeatherPanelApp(App):
     def build(self):
         container = Builder.load_string('''
 WeatherPanel:
-    lat: 51.4778
-    lon: -0.0014
-    location_name: 'Royal Observatory'
+    locations: (51.4778, -0.0014), 'Royal Observatory', (48.858222, 2.2945), 'Eiffel Tower'
 ''')
 
         container.update_initialize()
