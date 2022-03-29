@@ -90,3 +90,19 @@ Key Properties:
 * __grid_color__ - RGBA for the grid lines
 * __activated_color__ - RGBA for the active cell color
 * __cell_length__ - the length of the side of a cell (essentially cell size)
+
+## WeatherPanel
+The Kivy panel that displays current weather and weather forecast for a list of provided locations.
+
+Key Properties:
+* __owm_key__ - The user's key from https://openweathermap.org/.  IMPORTANT: This panel will not work without this key.*
+    It either needs to be specified as a property in the configuration or it needs to be set as an
+    environment variable.  You can get a free key by registering at openweathermap.org.
+* __temp_units__ - either fahrenheit or celcius (Default - fahrenheit)
+* __text_color__ - the rgba color of the text and line components of the interface. (Default - [0,0,0,1])
+* __bg_color__ - the background color (Default - [.5, .5, .5, 1])
+* __locations__ - a list of WeatherResponse objects, one each for the locations of interest.  This attribute can be
+    set by assigning a list in the form of [(lat1, lon1), location_name1, (lat2, lon2), location_name2, ...].
+    This is the form to use when assigning locations using the configuration file.  If assigned this way, 
+    it will be converted in a list of WeatherResponse objects.  
+

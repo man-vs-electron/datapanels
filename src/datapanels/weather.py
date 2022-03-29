@@ -4,7 +4,7 @@ Displays current weather and some forecast information for multiple locations.
 Automatically updates the weather information on a regular basis.
 """
 
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Union
 import os
 import numpy as np
 from datetime import datetime
@@ -93,9 +93,9 @@ class WeatherPanel(BoxLayout):
     """The main WeatherPanel interface.
 
     The Key User Relevant Properties are:
-    * owm_key - The user's key from https://openweathermap.org/.  Note that this panel will not work without this key.  
+    * owm_key - The user's key from https://openweathermap.org/.  IMPORTANT: This panel will not work without this key.*
                 It either needs to be specified as a property in the configuration or it needs to be set as an
-                environment variable.
+                environment variable.  You can get a free key by registering at openweathermap.org.
     * temp_units - either fahrenheit or celcius (Default - fahrenheit)
     * text_color - the rgba color of the text and line components of the interface. (Default - [0,0,0,1])
     * bg_color - the background color (Default - [.5, .5, .5, 1])
@@ -119,6 +119,9 @@ class WeatherPanel(BoxLayout):
     rng = np.random.RandomState()
 
     def update_initialize(self):
+        """Run update_data and then schedule data update and panel update if they are not already
+        scheduled.
+        """
         self.update_data()
         if not self.started:
             self.started=True
@@ -127,13 +130,21 @@ class WeatherPanel(BoxLayout):
 
 
     def dp_start(self):
+        """Run when the panel is displayed.  Call update_initialize
+        """
         self.update_initialize()
 
     def choose_random_location(self, *args):
+        """Choose one of the specified locations to display at random.
+        """
         self.ids.selected_location.text = self.rng.choice(self._locations).location_name
 
     def update_data(self, *args):
-        
+        """Call openweather and update the forecasts for all the locations.
+
+        :raises RuntimeError: If owm_key is not set either in the configuration file or as an enviornment
+        variable.
+        """        
         if self.owm_key is None:
             self.owm_key = os.environ.get("OWM_KEY")
         if self.owm_key is None:
@@ -150,6 +161,8 @@ class WeatherPanel(BoxLayout):
 
     
     def update_panel(self, *args):
+        """Update the data displayed on the panel.  Called when the spinner text field is set.
+        """
         ans = [r for r in self._locations if r.location_name==self.ids.selected_location.text][0].response
         data = {
             'As of': datetime.fromtimestamp(ans.current.reference_time()).strftime("%H:%M:%S"),
@@ -190,11 +203,24 @@ class WeatherPanel(BoxLayout):
             self.ids.graph.add_plot(rainplot)
 
     @property
-    def locations(self):
+    def locations(self) -> List[WeatherResponse]:
+        """Get the list of locations that this panel instance displays.
+
+        :return: A list of WeatherResponse objects, including any retrieved data.
+        :rtype: List[WeatherResponse]
+        """
         return self._locations
 
     @locations.setter
-    def locations(self, location_list: List):
+    def locations(self, location_list: Union[List[WeatherResponse], List[Union[Tuple[float, float], str]]]):
+        """Set the locations that this panel will display
+
+        :param location_list: Either a list of WeatherResponse objects or a list in the form [(lat1, lon1), 
+                              location_name1, (lat2, lon2), location_name2, ...].
+                              This is the form to use when assigning locations using the configuration file.  
+                              If assigned this way, it will be converted in a list of WeatherResponse objects.  
+        :type location_list: Union[List[WeatherResponse], List[Union[Tuple[float, float], str]]]
+        """
         if isinstance(location_list[0], WeatherResponse):
             self._locations = location_list
         else:
@@ -205,6 +231,8 @@ class WeatherPanel(BoxLayout):
         
 
 class WeatherPanelApp(App):
+    """Sample app for displaying the weather panel
+    """
     def build(self):
         container = Builder.load_string('''
 WeatherPanel:
