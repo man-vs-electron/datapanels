@@ -92,7 +92,11 @@ Key Properties:
 * __cell_length__ - the length of the side of a cell (essentially cell size)
 
 ## WeatherPanel
-The Kivy panel that displays current weather and weather forecast for a list of provided locations.
+The Kivy panel that displays current weather and weather forecast for a list of provided locations.  
+
+This panel uses information downloaded from https://openweathermap.org and requires a key.  The free key 
+is sufficient for the data that is used in this panel.  When configuring the panel, the key can either be
+places in the configuation key using the owm_key option or an environment variable owm_key can be set.
 
 Key Properties:
 * __owm_key__ - The user's key from https://openweathermap.org/.  IMPORTANT: This panel will not work without this key.*
