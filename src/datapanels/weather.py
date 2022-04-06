@@ -99,6 +99,8 @@ class WeatherPanel(BoxLayout):
     * temp_units - either fahrenheit or celcius (Default - fahrenheit)
     * text_color - the rgba color of the text and line components of the interface. (Default - [0,0,0,1])
     * bg_color - the background color (Default - [.5, .5, .5, 1])
+    * data_update_rate_sec - The number of seconds between data updates
+    * location_switch_rate_sec - The number of seconds to show each location
     * locations - a list of WeatherResponse objects, one each for the locations of interest.  This attribute can be
                   set by assigning a list in the form of [(lat1, lon1), location_name1, (lat2, lon2), location_name2, ...].
                   This is the form to use when assigning locations using the configuration file.  If assigned this way, 

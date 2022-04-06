@@ -105,6 +105,9 @@ Key Properties:
 * __temp_units__ - either fahrenheit or celcius (Default - fahrenheit)
 * __text_color__ - the rgba color of the text and line components of the interface. (Default - [0,0,0,1])
 * __bg_color__ - the background color (Default - [.5, .5, .5, 1])
+* __data_update_rate_sec__ - The number of seconds between data updates
+* __location_switch_rate_sec__ - The number of seconds to show each location
+
 * __locations__ - a list of WeatherResponse objects, one each for the locations of interest.  This attribute can be
     set by assigning a list in the form of [(lat1, lon1), location_name1, (lat2, lon2), location_name2, ...].
     This is the form to use when assigning locations using the configuration file.  If assigned this way, 
